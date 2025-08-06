@@ -1,0 +1,25 @@
+{
+  "name": "green-grimoire",
+  "version": "0.1.0",
+  "description": "AI-powered multilingual Telegram recipe bot",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "debug": "node --inspect src/index.js",
+    "test": "echo \"Tests coming soon...\" && exit 0"
+  },
+  "dependencies": {
+    "telegraf": "^4.15.6",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["telegram", "bot", "recipes", "ai", "multilingual"],
+  "author": "nesterova-p",
+  "license": "MIT"
+}
