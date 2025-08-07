@@ -89,14 +89,63 @@ bot.command('ping', (ctx) => {
         { parse_mode: 'Markdown' });
 });
 
+/*
+--------- VIDEO DETECTION FUNCTIONS ---------
+ */
+
+const detectedVideoLink = (text) => {
+    const videoPatterns = [
+        /tiktok\.com/i,
+        /instagram\.com/i,
+        /youtube\.com/i,
+        /youtu\.be/i,
+        /facebook\.com.*\/videos/i,
+        /twitter\.com.*\/status/i
+    ];
+
+    return videoPatterns.some(pattern => pattern.test(text));
+}
+
+const getPlatformResponse = (url) => {
+    if (url.includes('tiktok')) {
+        return `🎵 *TikTok Portal Detected!* Often contains quick recipe enchantments with mystical background music! 🎶`;
+    } else if (url.includes('instagram')) {
+        return `📸 *Instagram Scroll Detected!* Usually holds beautiful food imagery with recipe secrets! ✨`;
+    } else if (url.includes('youtube')) {
+        return `🎥 *YouTube Tome Detected!* Likely contains detailed cooking tutorials from kitchen masters! 📚`;
+    } else if (url.includes('facebook')) {
+        return `👥 *Facebook Gathering Detected!* Shared wisdom from the cooking community! 🍲`;
+    } else {
+        return `🔮 *Unknown Video Magic Detected!* A mysterious portal to culinary knowledge! 🌟`;
+    }
+};
 
 /*
 --------- TEXT ---------
  */
+
 bot.on('text', (ctx) => {
     const userMessage = ctx.message.text;
 
     if (userMessage.startsWith('/')) {
+        return;
+    }
+
+    if (detectedVideoLink(userMessage)) {
+        const urlMatch = userMessage.match(/(https?:\/\/[^\s]+)/);
+        const url = urlMatch ? urlMatch[0] : 'the mystical link';
+        const platformInfo = getPlatformResponse(url);
+
+        ctx.reply(`⚡🌿 *Moss's Ancient Detection Spell Activates!* 🌿⚡
+
+${platformInfo}
+
+🎬 **Portal Link:** \`${url}\`
+
+🧙‍♀️ *Soon I shall peer through this portal and extract its culinary secrets...*
+
+*Recording in the mystical logs...* 📜✨`,
+            { parse_mode: 'Markdown' });
         return;
     }
 
@@ -153,8 +202,8 @@ bot.launch().then(() => {
     console.log('✅ Bot is alive and ready for magic!');
     console.log('🔮 Try /start, /help, /ping in Telegram!');
 })
-.catch((err) => {
-    console.error('❌ Failed to start bot:', err);
-    process.exit(1);
-})
+    .catch((err) => {
+        console.error('❌ Failed to start bot:', err);
+        process.exit(1);
+    })
 console.log('🌿 Starting GreenGrimoire bot...');
