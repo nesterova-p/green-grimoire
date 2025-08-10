@@ -2,7 +2,6 @@ const YTDlpWrap = require('yt-dlp-wrap').default;
 const fs = require('fs-extra');
 const { getPlatformSpecificOptions } = require('./platformDetection');
 
-// Global state for download management
 let isDownloading = false;
 const downloadQueue = [];
 const pendingDownloads = new Map();
@@ -152,6 +151,7 @@ const downloadActualVideo = async (url, ctx, videoInfo) => {
 
 🎬 **Capturing:** ${videoInfo.title}
 📁 **Storing in temporary scrolls...**
+🎵 **Extracting mystical audio essence...**
 ⏳ **This may take a moment...**
 
 *Ancient magic is flowing...* 🌿✨`,
@@ -160,44 +160,94 @@ const downloadActualVideo = async (url, ctx, videoInfo) => {
         const downloadOptions = [
             ...getPlatformSpecificOptions(url),
             '--output', outputTemplate,
-            '--no-playlist'
+            '--no-playlist',
+            '--extract-audio',
+            '--audio-format', 'mp3',
+            '--audio-quality', '192K',
+            '--keep-video'
         ];
 
-        const filePath = await global.ytDlpInstance.execPromise([url, ...downloadOptions]);
+        await global.ytDlpInstance.execPromise([url, ...downloadOptions]);
 
         const files = await fs.readdir('./temp');
-        const downloadedFile = files.find(file =>
-            file.includes(safeTitle) && file.includes(timestamp.toString())
+
+        const videoFile = files.find(file =>
+            file.includes(safeTitle) &&
+            file.includes(timestamp.toString()) &&
+            (file.endsWith('.mp4') || file.endsWith('.webm') || file.endsWith('.mkv'))
         );
 
-        if (downloadedFile) {
-            const fullPath = `./temp/${downloadedFile}`;
-            const stats = await fs.stat(fullPath);
-            const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+        const audioFile = files.find(file =>
+            file.includes(safeTitle) &&
+            file.includes(timestamp.toString()) &&
+            file.endsWith('.mp3')
+        );
 
-            ctx.reply(`📜🎉 *Video successfully captured in the grimoire!* 🎉📜
+        if (videoFile) {
+            const videoPath = `./temp/${videoFile}`;
+            const videoStats = await fs.stat(videoPath);
+            const videoSizeMB = (videoStats.size / (1024 * 1024)).toFixed(2);
 
-🎬 **File:** ${downloadedFile}
-📊 **Size:** ${fileSizeMB} MB
+            let audioPath = null;
+            let audioSizeMB = 'N/A';
+
+            if (audioFile) {
+                audioPath = `./temp/${audioFile}`;
+                const audioStats = await fs.stat(audioPath);
+                audioSizeMB = (audioStats.size / (1024 * 1024)).toFixed(2);
+            }
+
+            const successMessage = audioFile ?
+                `📜🎉 *Video AND Audio successfully captured!* 🎉📜
+
+🎬 **Video File:** ${videoFile}
+📊 **Video Size:** ${videoSizeMB} MB
+
+🎵 **Audio File:** ${audioFile}
+📊 **Audio Size:** ${audioSizeMB} MB
+🔮 **Audio Quality:** MP3 (192kbps)
+
+🌱 *Moss has bound both video essence and mystical voices!*
+🧙‍♀️ *The recipe wisdom awaits transcription magic...*
+🗣️ *Audio ready for future speech-to-text spells!*
+
+⚠️ *Both files will be cleansed from storage in 1 hour* ✨🌿` :
+                `📜🎉 *Video captured (audio not available)* 🎉📜
+
+🎬 **Video File:** ${videoFile}
+📊 **Video Size:** ${videoSizeMB} MB
 📁 **Location:** Temporary mystical storage
 
-🌱 *Moss has bound the video essence to the physical realm!*
-🧙‍♀️ *Soon I'll learn to extract recipe wisdom from within...*
+🌱 *Video essence captured successfully!*
+⚠️ *This video had no audio track to extract*
 
-⚠️ *File will be cleansed from temporary storage in 1 hour* ✨🌿`);
+⚠️ *File will be cleansed from storage in 1 hour* ✨🌿`;
+
+            ctx.reply(successMessage);
 
             setTimeout(async () => {
                 try {
-                    await fs.remove(fullPath);
-                    console.log(`🧹 Cleaned up: ${downloadedFile}`);
+                    await fs.remove(videoPath);
+                    console.log(`🧹 Cleaned up video: ${videoFile}`);
+
+                    if (audioPath) {
+                        await fs.remove(audioPath);
+                        console.log(`🧹 Cleaned up audio: ${audioFile}`);
+                    }
                 } catch (error) {
                     console.error('Cleanup error:', error);
                 }
-            }, 60 * 60 * 1000);
+            }, 60 * 60 * 1000); // 1 hour
 
-            return fullPath;
+            return {
+                videoPath: videoPath,
+                audioPath: audioPath,
+                videoFile: videoFile,
+                audioFile: audioFile
+            };
+
         } else {
-            throw new Error('Download completed but file not found');
+            throw new Error('Download completed but no video file found');
         }
 
     } catch (error) {
@@ -217,6 +267,17 @@ const downloadActualVideo = async (url, ctx, videoInfo) => {
 - Our spells may need updating
 
 📱 YouTube and Instagram portals work more reliably! ✨`;
+        } else if (error.message.includes('Postprocessing') && error.message.includes('ffmpeg')) {
+            errorMessage += `🔧 FFmpeg Magical Tools Issue! 🔧
+
+🌿 The audio extraction tools need attention...
+
+🧙‍♀️ This shouldn't happen since you installed FFmpeg!
+- Try restarting the bot
+- Check if FFmpeg is in your PATH
+- Video-only download should still work
+
+*Moss's video magic is still strong!* ✨`;
         } else if (error.message.includes('filesize')) {
             errorMessage += `📊 Video Too Large for Current Magic! 📊
 

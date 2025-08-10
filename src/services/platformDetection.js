@@ -28,7 +28,7 @@ const getPlatformResponse = (url) => {
 const getPlatformSpecificOptions = (url) => {
     if (url.includes('tiktok')) {
         return [
-            '--format', 'best[height<=720]',
+            '--format', 'best/worst',
             '--max-filesize', '100M',
             '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         ];
