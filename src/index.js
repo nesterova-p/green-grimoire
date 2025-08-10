@@ -1,44 +1,14 @@
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
 
-console.log('🔍 Testing imports...');
+// import commands
+const startCommand = require('./commands/start');
+const helpCommand = require('./commands/help');
+const pingCommand = require('./commands/ping');
 
-// Test imports one by one
-try {
-    const startCommand = require('./commands/start');
-    console.log('✅ startCommand:', typeof startCommand);
-} catch (e) {
-    console.log('❌ startCommand failed:', e.message);
-}
-
-try {
-    const helpCommand = require('./commands/help');
-    console.log('✅ helpCommand:', typeof helpCommand);
-} catch (e) {
-    console.log('❌ helpCommand failed:', e.message);
-}
-
-try {
-    const pingCommand = require('./commands/ping');
-    console.log('✅ pingCommand:', typeof pingCommand);
-} catch (e) {
-    console.log('❌ pingCommand failed:', e.message);
-}
-
-try {
-    const textHandler = require('./handlers/textHandler');
-    console.log('✅ textHandler:', typeof textHandler);
-} catch (e) {
-    console.log('❌ textHandler failed:', e.message);
-}
-
-try {
-    const mediaHandler = require('./handlers/mediaHandler');
-    console.log('✅ mediaHandler:', typeof mediaHandler);
-    console.log('✅ mediaHandler.video:', typeof mediaHandler.video);
-} catch (e) {
-    console.log('❌ mediaHandler failed:', e.message);
-}
+// import handlers
+const textHandler = require('./handlers/textHandler');
+const mediaHandler = require('./handlers/mediaHandler');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -47,4 +17,39 @@ if(!process.env.BOT_TOKEN){
     process.exit(1);
 }
 
-console.log('🌿 All imports tested, starting bot...');
+// middleware
+bot.use((ctx, next) => {
+    const user = ctx.from.username || ctx.from.first_name;
+    console.log(`${user} sent: "${ctx.message?.text || 'non-text message'}"`);
+    return next();
+});
+
+// commands
+bot.start(startCommand);
+bot.help(helpCommand);
+bot.command('ping', pingCommand);
+
+// handlers
+bot.on('text', textHandler);
+bot.on('video', mediaHandler.video);
+bot.on('photo', mediaHandler.photo);
+bot.on('document', mediaHandler.document);
+
+// errors
+bot.catch((err, ctx) => {
+    console.error('🐛 Oops! Something went wrong:', err);
+    ctx.reply('🔧 Sorry, I had a little magical malfunction! Try again? ⚡')
+        .catch(() => console.error('Could not even send error message!'));
+});
+
+// launch
+bot.launch().then(() => {
+    console.log('✅ Bot is alive and ready for magic!');
+    console.log('🔮 Try /start, /help, /ping in Telegram!');
+})
+    .catch((err) => {
+        console.error('❌ Failed to start bot:', err);
+        process.exit(1);
+    });
+
+console.log('🌿 Starting GreenGrimoire bot...');
