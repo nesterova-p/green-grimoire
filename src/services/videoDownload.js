@@ -3,6 +3,7 @@ const fs = require('fs-extra');
 const { getPlatformSpecificOptions } = require('./platformDetection');
 const { transcribeAudio } = require('./speechToText');
 const { parseRecipe } = require('./recipeParser');
+const { smartExtractTextFromVideo } = require('./smartTextExtraction');
 
 let isDownloading = false;
 const downloadQueue = [];
@@ -24,6 +25,122 @@ const processDownloadQueue = async () => {
             setTimeout(processDownloadQueue, 1000);
         }
     }
+};
+
+const intelligentContentExtraction = async (videoPath, audioPath, ctx, videoInfo) => {
+    try {
+        await ctx.reply(`🧠✨ *Starting Enhanced Analysis* ✨🧠
+
+🔄 Phase 1: Audio transcription
+🔄 Phase 2: Description extraction  
+🔄 Phase 3: Smart OCR decision
+🔄 Phase 4: Recipe parsing
+
+*Analyzing content...* 🌿📊`);
+
+        // PHASE 1: Audio transcription
+        let transcript = null;
+        if (audioPath) {
+            transcript = await transcribeAudio(audioPath, ctx, videoInfo);
+        }
+
+        // PHASE 2: Description extraction
+        const descriptionText = extractVideoDescription(videoInfo);
+
+        // PHASE 3: Show content analysis (shorter version)
+        const transcriptLen = transcript ? transcript.length : 0;
+        const descLen = descriptionText ? descriptionText.length : 0;
+        const duration = videoInfo.duration ? `${Math.floor(videoInfo.duration / 60)}m ${Math.floor(videoInfo.duration % 60)}s` : 'Unknown';
+
+        await ctx.reply(`📊 *Content Analysis:*
+
+🗣️ Speech: ${transcriptLen} chars
+📝 Description: ${descLen} chars
+⏱️ Duration: ${duration}
+
+*Determining OCR strategy...* 🤔`);
+
+        // PHASE 4: Enhanced OCR
+        const contentAnalysis = {
+            transcript: transcript,
+            description: descriptionText,
+            videoInfo: videoInfo
+        };
+
+        const ocrText = await smartExtractTextFromVideo(videoPath, ctx, videoInfo, contentAnalysis);
+
+        // PHASE 5: Summary and parsing
+        await summarizeContentSources(ctx, {
+            transcript,
+            description: descriptionText,
+            ocrText
+        });
+
+        const textSources = {
+            transcript: transcript,
+            description: descriptionText,
+            ocrText: ocrText
+        };
+
+        const structuredRecipe = await parseRecipe(textSources, ctx, videoInfo);
+
+        // Log results
+        if (transcript) console.log(`✅ Transcript: ${videoInfo.title}`);
+        if (ocrText) console.log(`✅ OCR: ${videoInfo.title}`);
+        if (structuredRecipe) console.log(`🍳 Recipe: ${videoInfo.title}`);
+
+        return {
+            transcript,
+            description: descriptionText,
+            ocrText,
+            structuredRecipe
+        };
+
+    } catch (error) {
+        console.error('Content extraction error:', error);
+        await ctx.reply(`🐛 *Content extraction error!*
+
+${error.message || 'Unknown error'}
+
+*Trying simpler methods...* 🌿`);
+    }
+};
+
+const summarizeContentSources = async (ctx, sources) => {
+    const available = [];
+    const unavailable = [];
+
+    if (sources.transcript && sources.transcript.length > 20) {
+        available.push(`🗣️ **Speech** (${sources.transcript.length} chars)`);
+    } else {
+        unavailable.push('🔇 Speech (silent/unclear)');
+    }
+
+    if (sources.description && sources.description.length > 20) {
+        available.push(`📝 **Description** (${sources.description.length} chars)`);
+    } else {
+        unavailable.push('📝 Description (minimal)');
+    }
+
+    if (sources.ocrText && sources.ocrText.length > 20) {
+        available.push(`👁️ **Visual Text** (${sources.ocrText.length} chars)`);
+    } else {
+        unavailable.push('👁️ Visual Text (none/skipped)');
+    }
+
+    ctx.reply(`📊✨ **Content Extraction Summary** ✨📊
+
+✅ **Successfully Captured:**
+${available.length > 0 ? available.join('\n') : '(None)'}
+
+⚠️ **Not Available:**
+${unavailable.join('\n')}
+
+🎯 **Efficiency Score:** ${available.length}/3 sources
+🔮 **Ready for recipe parsing with ${available.length} content source${available.length !== 1 ? 's' : ''}!**
+
+*Moss optimized the extraction process!* 🌿⚡`,
+        { parse_mode: 'Markdown' });
 };
 
 const extractVideoDescription = (videoInfo) => {
@@ -121,8 +238,7 @@ ${platformWarning}
 📝 *Reply "yes" or "download" to proceed*
 🚫 *Reply "no" or "cancel" to skip*
 
-*The choice is yours, dear cook!* ✨🌿`,
-            { parse_mode: 'Markdown' });
+*The choice is yours, dear cook!* ✨🌿`);
 
         const userId = ctx.from.id;
         pendingDownloads.set(userId, { url, videoInfo });
@@ -249,31 +365,12 @@ const downloadActualVideo = async (url, ctx, videoInfo) => {
 
             ctx.reply(successMessage);
 
-            if(audioPath){
-                const transcript  = await transcribeAudio(audioPath, ctx, videoInfo);
-                const descriptionText = extractVideoDescription(videoInfo);
-
-                const textSource = {
-                    transcript: transcript,
-                    description: descriptionText,
-                }
-
-                const structuredRecipe = await parseRecipe(textSource, ctx, videoInfo);
-
-                if(transcript){
-                    console.log(`Transcript captured for: ${videoInfo.title}`);
-                }
-
-                if (structuredRecipe) {
-                    console.log(`🍳 Recipe extracted for: ${videoInfo.title}`);
-                }
-            }
+            await intelligentContentExtraction(videoPath, audioPath, ctx, videoInfo);
 
             setTimeout(async () => {
                 try {
                     await fs.remove(videoPath);
                     console.log(`🧹 Cleaned up video: ${videoFile}`);
-
                     if (audioPath) {
                         await fs.remove(audioPath);
                         console.log(`🧹 Cleaned up audio: ${audioFile}`);
@@ -376,6 +473,8 @@ const handleDownloadConfirmation = async (ctx, userMessage) => {
     }
     return false;
 };
+
+
 
 module.exports = {
     downloadVideoInfo,
