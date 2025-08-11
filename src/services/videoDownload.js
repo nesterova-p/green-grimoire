@@ -1,6 +1,7 @@
 const YTDlpWrap = require('yt-dlp-wrap').default;
 const fs = require('fs-extra');
 const { getPlatformSpecificOptions } = require('./platformDetection');
+const { transcribeAudio } = require('./speechToText')
 
 let isDownloading = false;
 const downloadQueue = [];
@@ -224,6 +225,14 @@ const downloadActualVideo = async (url, ctx, videoInfo) => {
 ⚠️ *File will be cleansed from storage in 1 hour* ✨🌿`;
 
             ctx.reply(successMessage);
+
+            if(audioPath){
+                const transcript  = await transcribeAudio(audioPath, ctx, videoInfo);
+
+                if(transcript){
+                    console.log(`Transcript captured for: ${videoInfo.title}`);
+                }
+            }
 
             setTimeout(async () => {
                 try {
