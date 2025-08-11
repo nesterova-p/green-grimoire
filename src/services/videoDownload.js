@@ -1,7 +1,8 @@
 const YTDlpWrap = require('yt-dlp-wrap').default;
 const fs = require('fs-extra');
 const { getPlatformSpecificOptions } = require('./platformDetection');
-const { transcribeAudio } = require('./speechToText')
+const { transcribeAudio } = require('./speechToText');
+const { parseRecipe } = require('./recipeParser');
 
 let isDownloading = false;
 const downloadQueue = [];
@@ -23,6 +24,28 @@ const processDownloadQueue = async () => {
             setTimeout(processDownloadQueue, 1000);
         }
     }
+};
+
+const extractVideoDescription = (videoInfo) => {
+    const description = videoInfo.description || '';
+    const title = videoInfo.title || '';
+    const uploader = videoInfo.uploader || '';
+
+    let descriptionText = '';
+
+    if (title) {
+        descriptionText += `TITLE: ${title}\n`;
+    }
+
+    if (description && description.length > 10) {
+        descriptionText += `DESCRIPTION: ${description}\n`;
+    }
+
+    if (uploader) {
+        descriptionText += `CREATOR: ${uploader}\n`;
+    }
+
+    return descriptionText.trim();
 };
 
 const downloadVideoInfo = async (url, ctx) => {
@@ -228,9 +251,21 @@ const downloadActualVideo = async (url, ctx, videoInfo) => {
 
             if(audioPath){
                 const transcript  = await transcribeAudio(audioPath, ctx, videoInfo);
+                const descriptionText = extractVideoDescription(videoInfo);
+
+                const textSource = {
+                    transcript: transcript,
+                    description: descriptionText,
+                }
+
+                const structuredRecipe = await parseRecipe(textSource, ctx, videoInfo);
 
                 if(transcript){
                     console.log(`Transcript captured for: ${videoInfo.title}`);
+                }
+
+                if (structuredRecipe) {
+                    console.log(`🍳 Recipe extracted for: ${videoInfo.title}`);
                 }
             }
 
