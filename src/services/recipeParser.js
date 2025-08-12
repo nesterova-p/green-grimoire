@@ -4,34 +4,36 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
-const parseRecipe = async (textSources, ctx, videoInfo) => {
+const parseRecipe = async (textSources, ctx, videoInfo, silent = false) => {
     try {
         const combinedText = combineTextSources(textSources);
 
         if (!combinedText || combinedText.length < 20) {
-            ctx.reply(`📝✨ *Moss searches for recipe patterns...* ✨📝
+            if (!silent) {
+                ctx.reply(`📝 **No Recipe Content** 📝
 
-🌿 *The mystical texts are too brief for recipe extraction...*
-🔮 *No clear cooking instructions detected*
+🌿 The video content is too brief for recipe extraction.
 
-🧙‍♀️ *This video might be:*
-- Non-recipe content (entertainment, music, etc.)
-- Very short cooking clip
-- Recipe in visual form only
+This might be:
+- Entertainment content
+- Visual-only cooking demonstration  
+- Non-recipe video
 
-*The captured content is still preserved in the grimoire!* ✨🌱`,
-                { parse_mode: 'Markdown' });
+*Content is preserved for reference!* ✨`,
+                    { parse_mode: 'Markdown' });
+            }
             return null;
         }
 
-        ctx.reply(`🍳✨ *Moss begins the recipe parsing ritual!* ✨🍳
+        if (!silent) {
+            ctx.reply(`🍳 **Extracting Recipe** 🍳
 
-🔮 *Analyzing ${combinedText.length} characters of culinary wisdom...*
-📝 *Extracting ingredients and sacred cooking steps...*
-🧙‍♀️ *Organizing ancient kitchen knowledge...*
+🔮 Analyzing ${combinedText.length} characters of content...
+🧙‍♀️ Organizing ingredients and cooking steps...
 
-*Recipe magic is flowing...* 🌿📜`,
-            { parse_mode: 'Markdown' });
+*AI magic in progress...* 🌿`,
+                { parse_mode: 'Markdown' });
+        }
 
         const recipeAnalysis = await openai.chat.completions.create({
             model: 'gpt-3.5-turbo',
@@ -43,46 +45,55 @@ const parseRecipe = async (textSources, ctx, videoInfo) => {
 TASK: Parse the provided text and extract recipe information.
 
 OUTPUT FORMAT (use this exact structure):
-**🍳 RECIPE TITLE:**
+🍳 **RECIPE TITLE:**
 [Extract or create descriptive title]
 
-**📋 INGREDIENTS:**
-- [ingredient 1 with quantity]
-- [ingredient 2 with quantity]
-- [etc.]
+📋 **INGREDIENTS:**
+- **[quantity]** [ingredient name]
+- **[quantity]** [ingredient name]
+- **[quantity]** [ingredient name]
+(etc.)
 
-**👩‍🍳 COOKING STEPS:**
-1. [Step 1]
-2. [Step 2]
-3. [etc.]
+👩‍🍳 **COOKING STEPS:**
+1. [Very detailed step with specific techniques, timing, and visual cues]
+2. [Very detailed step with specific techniques, timing, and visual cues]
+3. [Very detailed step with specific techniques, timing, and visual cues]
+(etc.)
 
-**⏱️ COOKING TIME:**
+⏱️ **COOKING TIME:**
 [Extract timing if mentioned, or estimate based on cooking method]
 
-**🍽️ SERVINGS:**
+🍽️ **SERVINGS:**
 [Extract serving info if mentioned, OR estimate based on ingredient quantities]
 
-**📝 NOTES:**
+📝 **NOTES:**
 [Any additional tips or notes]
 
-INTELLIGENT ESTIMATION RULES:
-- SERVINGS: If not mentioned, estimate based on ingredient amounts:
-  * 1 chicken breast = 1-2 servings
-  * 4-5 chicken thighs = 3-4 servings  
-  * 1 cup rice/pasta = 2-3 servings
-  * Large soup recipe = 4-6 servings
-  * Small snack recipe = 1-2 servings
-  
-- COOKING TIME: If not mentioned, estimate based on method:
-  * Soup/stew = 20-45 minutes
-  * Stir-fry = 10-15 minutes
-  * Baking = 25-60 minutes
-  * Quick assembly = 5-10 minutes
+FORMATTING RULES:
+- **QUANTITIES MUST BE BOLD**: Use **bold** formatting around all quantities and measurements
+- Examples: **4-5** chicken thighs, **3 cm** ginger, **2 tbsp** soy sauce, **1 cup** rice
+- For ingredients without specific quantities: **to taste** salt, **as needed** oil
 
-- MISSING QUANTITIES: If ingredients lack amounts, suggest reasonable quantities:
-  * "garlic" → "2-3 cloves garlic"
-  * "onion" → "1 medium onion"
-  * "salt" → "salt to taste"
+DETAILED COOKING STEPS REQUIREMENTS:
+- **BE VERY DETAILED**: Each step should be comprehensive with specific instructions
+- **Include timing**: "Sauté for **2-3 minutes** until golden" not just "sauté"
+- **Visual cues**: "until edges are golden brown" or "until fragrant"
+- **Techniques**: Specify how to cut, mix, heat level, etc.
+- **Temperature details**: "over medium heat", "bring to a boil then reduce to simmer"
+- **Texture descriptions**: "until soft and translucent", "until crispy"
+- **Equipment details**: "in a large pot", "using a wooden spoon"
+
+EXAMPLES OF DETAILED STEPS:
+❌ Simple: "Cook chicken"
+✅ Detailed: "Heat **2 tbsp** oil in a large pot over medium-high heat. Add chicken thighs and sear for **3-4 minutes** per side until golden brown and crispy. Remove chicken and set aside."
+
+❌ Simple: "Add vegetables"  
+✅ Detailed: "In the same pot, add diced onion and cook for **2-3 minutes** until translucent. Add minced garlic and ginger, stirring constantly for **30 seconds** until fragrant."
+
+INTELLIGENT ESTIMATION RULES:
+- SERVINGS: If not mentioned, estimate based on ingredient amounts
+- COOKING TIME: If not mentioned, estimate based on method
+- MISSING QUANTITIES: If ingredients lack amounts, suggest reasonable quantities and make them bold
 
 RULES:
 - If no clear recipe found, respond: "NO_RECIPE_DETECTED"
@@ -91,8 +102,8 @@ RULES:
 - Add "(estimated)" when you're estimating missing info
 - Keep original cooking terms and techniques
 - Preserve any cultural/regional cooking methods
-- If text is in non-English, keep original language but add structure
-- Be helpful and complete the recipe information`
+- **ALWAYS make quantities and measurements bold with ** formatting**
+- **MAKE EVERY COOKING STEP VERY DETAILED AND COMPREHENSIVE**`
                 },
                 {
                     role: 'user',
@@ -106,56 +117,51 @@ RULES:
         const recipeContent = recipeAnalysis.choices[0].message.content.trim();
 
         if (recipeContent === 'NO_RECIPE_DETECTED' || recipeContent.includes('NO_RECIPE_DETECTED')) {
-            ctx.reply(`🔍✨ *Moss has thoroughly examined the mystical texts...* ✨🔍
+            if (!silent) {
+                ctx.reply(`🔍 **No Recipe Structure Found** 🔍
 
-🌿 *No structured recipe patterns detected in:*
-- Transcribed speech
-- Video description  
-- Visual text overlays
-
-🧙‍♀️ *This content appears to be:*
-- Entertainment or lifestyle content
-- Recipe inspiration without specific instructions
+🌿 Content analyzed but no structured recipe detected:
+- May be entertainment or lifestyle content
 - Visual-only cooking demonstration
+- Recipe inspiration without specific instructions
 
-*All captured text is preserved for reference!* ✨🌱`,
-                { parse_mode: 'Markdown' });
+*All captured text is preserved for reference!* ✨`,
+                    { parse_mode: 'Markdown' });
+            }
             return null;
         }
 
-        ctx.reply(`📜🎉 *RECIPE SUCCESSFULLY EXTRACTED!* 🎉📜
+        await ctx.reply(`🎉 **RECIPE EXTRACTED!** 🎉
 
 ${recipeContent}
 
-🌱 *Moss has organized the culinary wisdom into sacred scrolls!*
-🧙‍♀️ *The ancient recipe is now preserved in structured form!*
-🍳 *Ready for cooking adventures!*
-
-*May your kitchen be blessed with delicious magic!* ✨🌿`,
+🌱 *Your recipe is ready for cooking adventures!*
+✨ *May your kitchen be blessed with delicious magic!*`,
             { parse_mode: 'Markdown' });
 
         return {
             rawText: combinedText,
             structuredRecipe: recipeContent,
             videoTitle: videoInfo.title,
-            extractedFrom: Object.keys(textSources)
+            extractedFrom: Object.keys(textSources).filter(key => textSources[key])
         };
 
     } catch (error) {
         console.error('Recipe parsing error:', error);
 
-        ctx.reply(`🐛🍳 *The recipe parsing ritual encountered resistance!* 🍳🐛
+        if (!silent) {
+            ctx.reply(`🐛 **Recipe Parsing Failed** 🐛
 
-🌿 *Error during culinary analysis:*
-${error.message || 'The recipe spirits are not cooperating!'}
+${error.message || 'AI recipe analysis temporarily unavailable'}
 
-🧙‍♀️ *Possible causes:*
+🌿 **Possible causes:**
 - OpenAI API issues
-- Text too complex for parsing  
-- Network magical interference
-- Recipe magic temporarily unavailable
+- Content too complex for parsing  
+- Network interference
 
-*The raw transcription is still safely captured!* ✨🌱`);
+*Raw transcription is still captured!* ✨`,
+                { parse_mode: 'Markdown' });
+        }
 
         return null;
     }

@@ -9,293 +9,158 @@ let isDownloading = false;
 const downloadQueue = [];
 const pendingDownloads = new Map();
 
-const processDownloadQueue = async () => {
-    if (isDownloading || downloadQueue.length === 0) return;
+// single message that gets edited
+const sendProgressUpdate = async (ctx, messageId, status, details = '') => {
+    const progressSteps = {
+        'analyzing': '🔮✨ Moss peers through the mystical portal... ✨🔮',
+        'downloading': '🧙‍♀️⚡ Channeling ancient downloading spells... ⚡🧙‍♀️',
+        'extracting': '🎵📜 Binding video essence and mystical voices... 📜🎵',
+        'processing': '🧠🌿 Moss analyzes the captured culinary wisdom... 🌿🧠',
+        'parsing': '🍳✨ Organizing ancient kitchen knowledge into sacred scrolls... ✨🍳'
+    };
 
-    isDownloading = true;
-    const { url, ctx } = downloadQueue.shift();
+    const cleanDetails = details ? details.replace(/\*/g, '').replace(/_/g, '') : '';  // clean details text; aviod md issues
+
+    const message = `${progressSteps[status] || status}
+
+${cleanDetails ? `${cleanDetails}\n` : ''}
+*Ancient magic is flowing...* 🌿⚡`;
 
     try {
-        await downloadVideoInfo(url, ctx);
+        if (messageId) {
+            await ctx.telegram.editMessageText(
+                ctx.chat.id,
+                messageId,
+                null,
+                message,
+                { parse_mode: 'Markdown' }
+            );
+        } else {
+            const sent = await ctx.reply(message, { parse_mode: 'Markdown' });
+            return sent.message_id;
+        }
     } catch (error) {
-        console.error('Queue processing error:', error);
-    } finally {
-        isDownloading = false;
-        if (downloadQueue.length > 0) {
-            setTimeout(processDownloadQueue, 1000);
+        console.error('Progress update error:', error.message);
+        const plainMessage = message.replace(/\*\*/g, '').replace(/\*/g, '');
+        try {
+            if (messageId) {
+                await ctx.telegram.editMessageText(ctx.chat.id, messageId, null, plainMessage);
+            } else {
+                const sent = await ctx.reply(plainMessage);
+                return sent.message_id;
+            }
+        } catch (fallbackError) {
+            console.error('Fallback message also failed:', fallbackError.message);
         }
     }
-};
-
-const intelligentContentExtraction = async (videoPath, audioPath, ctx, videoInfo) => {
-    try {
-        await ctx.reply(`🧠✨ *Starting Enhanced Analysis* ✨🧠
-
-🔄 Phase 1: Audio transcription
-🔄 Phase 2: Description extraction  
-🔄 Phase 3: Smart OCR decision
-🔄 Phase 4: Recipe parsing
-
-*Analyzing content...* 🌿📊`);
-
-        // PHASE 1: Audio transcription
-        let transcript = null;
-        if (audioPath) {
-            transcript = await transcribeAudio(audioPath, ctx, videoInfo);
-        }
-
-        // PHASE 2: Description extraction
-        const descriptionText = extractVideoDescription(videoInfo);
-
-        // PHASE 3: Show content analysis (shorter version)
-        const transcriptLen = transcript ? transcript.length : 0;
-        const descLen = descriptionText ? descriptionText.length : 0;
-        const duration = videoInfo.duration ? `${Math.floor(videoInfo.duration / 60)}m ${Math.floor(videoInfo.duration % 60)}s` : 'Unknown';
-
-        await ctx.reply(`📊 *Content Analysis:*
-
-🗣️ Speech: ${transcriptLen} chars
-📝 Description: ${descLen} chars
-⏱️ Duration: ${duration}
-
-*Determining OCR strategy...* 🤔`);
-
-        // PHASE 4: Enhanced OCR
-        const contentAnalysis = {
-            transcript: transcript,
-            description: descriptionText,
-            videoInfo: videoInfo
-        };
-
-        const ocrText = await smartExtractTextFromVideo(videoPath, ctx, videoInfo, contentAnalysis);
-
-        // PHASE 5: Summary and parsing
-        await summarizeContentSources(ctx, {
-            transcript,
-            description: descriptionText,
-            ocrText
-        });
-
-        const textSources = {
-            transcript: transcript,
-            description: descriptionText,
-            ocrText: ocrText
-        };
-
-        const structuredRecipe = await parseRecipe(textSources, ctx, videoInfo);
-
-        // Log results
-        if (transcript) console.log(`✅ Transcript: ${videoInfo.title}`);
-        if (ocrText) console.log(`✅ OCR: ${videoInfo.title}`);
-        if (structuredRecipe) console.log(`🍳 Recipe: ${videoInfo.title}`);
-
-        return {
-            transcript,
-            description: descriptionText,
-            ocrText,
-            structuredRecipe
-        };
-
-    } catch (error) {
-        console.error('Content extraction error:', error);
-        await ctx.reply(`🐛 *Content extraction error!*
-
-${error.message || 'Unknown error'}
-
-*Trying simpler methods...* 🌿`);
-    }
-};
-
-const summarizeContentSources = async (ctx, sources) => {
-    const available = [];
-    const unavailable = [];
-
-    if (sources.transcript && sources.transcript.length > 20) {
-        available.push(`🗣️ **Speech** (${sources.transcript.length} chars)`);
-    } else {
-        unavailable.push('🔇 Speech (silent/unclear)');
-    }
-
-    if (sources.description && sources.description.length > 20) {
-        available.push(`📝 **Description** (${sources.description.length} chars)`);
-    } else {
-        unavailable.push('📝 Description (minimal)');
-    }
-
-    if (sources.ocrText && sources.ocrText.length > 20) {
-        available.push(`👁️ **Visual Text** (${sources.ocrText.length} chars)`);
-    } else {
-        unavailable.push('👁️ Visual Text (none/skipped)');
-    }
-
-    ctx.reply(`📊✨ **Content Extraction Summary** ✨📊
-
-✅ **Successfully Captured:**
-${available.length > 0 ? available.join('\n') : '(None)'}
-
-⚠️ **Not Available:**
-${unavailable.join('\n')}
-
-🎯 **Efficiency Score:** ${available.length}/3 sources
-🔮 **Ready for recipe parsing with ${available.length} content source${available.length !== 1 ? 's' : ''}!**
-
-*Moss optimized the extraction process!* 🌿⚡`,
-        { parse_mode: 'Markdown' });
-};
-
-const extractVideoDescription = (videoInfo) => {
-    const description = videoInfo.description || '';
-    const title = videoInfo.title || '';
-    const uploader = videoInfo.uploader || '';
-
-    let descriptionText = '';
-
-    if (title) {
-        descriptionText += `TITLE: ${title}\n`;
-    }
-
-    if (description && description.length > 10) {
-        descriptionText += `DESCRIPTION: ${description}\n`;
-    }
-
-    if (uploader) {
-        descriptionText += `CREATOR: ${uploader}\n`;
-    }
-
-    return descriptionText.trim();
+    return messageId;
 };
 
 const downloadVideoInfo = async (url, ctx) => {
     try {
         await fs.ensureDir('./temp');
 
-        ctx.reply(`🔮✨ *Moss begins the mystical video extraction ritual...* ✨🔮
+        const platformName = url.includes('tiktok') ? 'TikTok' :
+            url.includes('instagram') ? 'Instagram' :
+                url.includes('youtube') ? 'YouTube' : 'unknown';
 
-🧙‍♀️ *Channeling ancient downloading spells...*
-📁 *Preparing sacred scroll storage...*
+        const progressId = await sendProgressUpdate(ctx, null, 'analyzing',
+            `🧙‍♀️ Moss examines the ${platformName} portal's mystical energies...`);
 
-*Please wait while I peer through the portal...* 🌿⚡`,
-            { parse_mode: 'Markdown' });
-
-        // Initialize yt-dlp once
         if (!global.ytDlpInstance) {
-            try {
-                global.ytDlpInstance = new YTDlpWrap();
-                console.log('yt-dlp instance created!');
-            } catch (error) {
-                console.log('yt-dlp initialization issue:', error.message);
-                throw new Error('Could not initialize video magic tools');
-            }
+            global.ytDlpInstance = new YTDlpWrap();
         }
 
         let videoInfo;
-
-        // Special handling for TikTok
         if (url.includes('tiktok')) {
             try {
                 videoInfo = await Promise.race([
                     global.ytDlpInstance.getVideoInfo(url),
                     new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('TikTok portal timeout')), 30000)
-                    )
+                        setTimeout(() => reject(new Error('TikTok timeout')), 30000))
                 ]);
             } catch (tiktokError) {
-                console.log('TikTok info extraction failed, using minimal info:', tiktokError.message);
                 videoInfo = {
-                    title: 'TikTok Video (Info extraction blocked)',
+                    title: 'TikTok Video (Limited info)',
                     duration: 'Unknown',
-                    view_count: 'Unknown',
                     uploader: 'TikTok User'
                 };
             }
         } else {
-            videoInfo = await Promise.race([
-                global.ytDlpInstance.getVideoInfo(url),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Video portal took too long to respond')), 100000)
-                )
-            ]);
+            videoInfo = await global.ytDlpInstance.getVideoInfo(url);
         }
 
-        const duration = (videoInfo.duration && !isNaN(videoInfo.duration)) ?
-            `${Math.floor(videoInfo.duration / 60)}m ${Math.floor(videoInfo.duration % 60)}s` : 'Unknown';
-
-        const views = videoInfo.view_count ? videoInfo.view_count.toLocaleString() : 'Unknown';
+        const duration = videoInfo.duration ?
+            `${Math.floor(videoInfo.duration / 60)}m ${Math.floor(videoInfo.duration % 60)}s` : 'Unknown duration';
 
         const platformWarning = url.includes('tiktok') ?
-            `\n⚠️ *TikTok videos are tricky! Download success not guaranteed.* ⚠️\n` : '';
+            '\n⚠️ *TikTok portals can be tricky - success not guaranteed!* ⚠️' : '';
 
-        ctx.reply(`📜⚡ *Video portal successfully opened!* ⚡📜
+        await ctx.telegram.editMessageText(
+            ctx.chat.id,
+            progressId,
+            null,
+            `📜⚡ *Video portal successfully opened!* ⚡📜
 
-🎬 **Title:** ${videoInfo.title || 'Unknown mystical content'}
+🎬 **Mystical Content:** ${videoInfo.title || 'Unknown culinary wisdom'}
 ⏱️ **Duration:** ${duration}
-👁️ **Views:** ${views}
-📺 **Channel:** ${videoInfo.uploader || 'Unknown sage'}
-${platformWarning}
+📺 **Sage Creator:** ${videoInfo.uploader || 'Unknown kitchen master'}${platformWarning}
+
 🤔💭 *Moss has examined the mystical portal...* 💭🤔
 
 🔮 **Shall I capture this video in the physical realm?**
-📝 *Reply "yes" or "download" to proceed*
-🚫 *Reply "no" or "cancel" to skip*
+📝 *Reply "yes" to proceed with the ancient ritual*
+🚫 *Reply "no" to let the portal fade away*
 
-*The choice is yours, dear cook!* ✨🌿`);
+*The choice is yours, dear cook!* ✨🌿`,
+            { parse_mode: 'Markdown' }
+        );
 
-        const userId = ctx.from.id;
-        pendingDownloads.set(userId, { url, videoInfo });
-
+        pendingDownloads.set(ctx.from.id, { url, videoInfo, progressId });
         return videoInfo;
 
     } catch (error) {
         console.error('Video info error:', error);
-
-        if (url.includes('tiktok') && error.message.includes('Unable to extract')) {
-            ctx.reply(`🎵⚡ *TikTok's magical defenses are too strong!* ⚡🎵
+        const errorMsg = url.includes('tiktok') && error.message.includes('extract') ?
+            `🎵⚡ *TikTok's magical defenses are too strong!* ⚡🎵
 
 🌿 This particular TikTok video has powerful anti-magic wards...
 
-🧙‍♀️ *TikTok Portal Issues:*
+🧙‍♀️ *TikTok Portal Complications:*
 - Video might be private or region-locked
-- TikTok actively blocks video extraction
+- TikTok actively blocks video extraction spells
 - Some TikTok videos work, others don't
 - Success rate varies by video age and privacy
 
-📱 *Suggestions:*
+📱 *Moss suggests:*
 - Try a different TikTok video
-- YouTube and Instagram work much better
+- YouTube and Instagram portals work much better!
 - Public TikTok videos have better success rates
 
-*Moss will keep trying different enchantments!* ✨🌱`,
-                { parse_mode: 'Markdown' });
-        } else {
-            ctx.reply(`🐛⚡ *Moss's mystical vision is clouded!* ⚡🐛
+*Moss will keep trying different enchantments!* ✨🌱` :
+            `🐛⚡ *Moss's mystical vision is clouded!* ⚡🐛
 
-🌿 The video portal resisted my ancient magic... 
+🌿 The video portal resisted the ancient magic... 
 
-*Error whispers:* ${error.message || 'Unknown magical interference'}
+*Error whispers:* ${error.message || 'Unknown magical interference detected'}
 
-🧙‍♀️ *I shall grow stronger and try different spells!* ✨🌱`,
-                { parse_mode: 'Markdown' });
-        }
+🧙‍♀️ *Moss will grow stronger and try different spells next time!* 
+🔮 *Send another video link to attempt a new ritual!* ✨🌱`;
 
+        ctx.reply(errorMsg, { parse_mode: 'Markdown' });
         return null;
     }
 };
 
-const downloadActualVideo = async (url, ctx, videoInfo) => {
+const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
     try {
         const timestamp = Date.now();
-        const safeTitle = videoInfo.title?.replace(/[^a-z0-9]/gi, '_').substring(0, 50) || 'video';
+        const safeTitle = videoInfo.title?.replace(/[^a-z0-9]/gi, '_').substring(0, 30) || 'video';
         const outputTemplate = `./temp/${safeTitle}_${timestamp}.%(ext)s`;
 
-        ctx.reply(`🔮⚡ *Moss begins the sacred downloading ritual!* ⚡🔮
-
-🎬 **Capturing:** ${videoInfo.title}
-📁 **Storing in temporary scrolls...**
-🎵 **Extracting mystical audio essence...**
-⏳ **This may take a moment...**
-
-*Ancient magic is flowing...* 🌿✨`,
-            { parse_mode: 'Markdown' });
+        // download
+        await sendProgressUpdate(ctx, progressId, 'downloading',
+            '📁 Capturing mystical video essence and binding audio spirits...');
 
         const downloadOptions = [
             ...getPlatformSpecificOptions(url),
@@ -309,178 +174,207 @@ const downloadActualVideo = async (url, ctx, videoInfo) => {
 
         await global.ytDlpInstance.execPromise([url, ...downloadOptions]);
 
+        // find files
         const files = await fs.readdir('./temp');
-
         const videoFile = files.find(file =>
-            file.includes(safeTitle) &&
-            file.includes(timestamp.toString()) &&
+            file.includes(safeTitle) && file.includes(timestamp.toString()) &&
             (file.endsWith('.mp4') || file.endsWith('.webm') || file.endsWith('.mkv'))
         );
-
         const audioFile = files.find(file =>
-            file.includes(safeTitle) &&
-            file.includes(timestamp.toString()) &&
+            file.includes(safeTitle) && file.includes(timestamp.toString()) &&
             file.endsWith('.mp3')
         );
 
-        if (videoFile) {
-            const videoPath = `./temp/${videoFile}`;
-            const videoStats = await fs.stat(videoPath);
-            const videoSizeMB = (videoStats.size / (1024 * 1024)).toFixed(2);
-
-            let audioPath = null;
-            let audioSizeMB = 'N/A';
-
-            if (audioFile) {
-                audioPath = `./temp/${audioFile}`;
-                const audioStats = await fs.stat(audioPath);
-                audioSizeMB = (audioStats.size / (1024 * 1024)).toFixed(2);
-            }
-
-            const successMessage = audioFile ?
-                `📜🎉 *Video AND Audio successfully captured!* 🎉📜
-
-🎬 **Video File:** ${videoFile}
-📊 **Video Size:** ${videoSizeMB} MB
-
-🎵 **Audio File:** ${audioFile}
-📊 **Audio Size:** ${audioSizeMB} MB
-🔮 **Audio Quality:** MP3 (192kbps)
-
-🌱 *Moss has bound both video essence and mystical voices!*
-🧙‍♀️ *The recipe wisdom awaits transcription magic...*
-🗣️ *Audio ready for future speech-to-text spells!*
-
-⚠️ *Both files will be cleansed from storage in 1 hour* ✨🌿` :
-                `📜🎉 *Video captured (audio not available)* 🎉📜
-
-🎬 **Video File:** ${videoFile}
-📊 **Video Size:** ${videoSizeMB} MB
-📁 **Location:** Temporary mystical storage
-
-🌱 *Video essence captured successfully!*
-⚠️ *This video had no audio track to extract*
-
-⚠️ *File will be cleansed from storage in 1 hour* ✨🌿`;
-
-            ctx.reply(successMessage);
-
-            await intelligentContentExtraction(videoPath, audioPath, ctx, videoInfo);
-
-            setTimeout(async () => {
-                try {
-                    await fs.remove(videoPath);
-                    console.log(`🧹 Cleaned up video: ${videoFile}`);
-                    if (audioPath) {
-                        await fs.remove(audioPath);
-                        console.log(`🧹 Cleaned up audio: ${audioFile}`);
-                    }
-                } catch (error) {
-                    console.error('Cleanup error:', error);
-                }
-            }, 60 * 60 * 1000); // 1 hour
-
-            return {
-                videoPath: videoPath,
-                audioPath: audioPath,
-                videoFile: videoFile,
-                audioFile: audioFile
-            };
-
-        } else {
+        if (!videoFile) {
             throw new Error('Download completed but no video file found');
         }
 
-    } catch (error) {
-        console.error('Video download error:', error);
-
-        let errorMessage = '🐛⚡ The downloading ritual has been disrupted! ⚡🐛\n\n';
-
-        if (error.message.includes('TikTok') && error.message.includes('Unable to extract')) {
-            errorMessage += `🎵 TikTok Portal Complications! 🎵
-
-🌿 TikTok's magical wards are particularly strong today...
-
-🧙‍♀️ Possible solutions:
-- Try a different TikTok video
-- TikTok frequently blocks video magic
-- The video might be private or restricted
-- Our spells may need updating
-
-📱 YouTube and Instagram portals work more reliably! ✨`;
-        } else if (error.message.includes('Postprocessing') && error.message.includes('ffmpeg')) {
-            errorMessage += `🔧 FFmpeg Magical Tools Issue! 🔧
-
-🌿 The audio extraction tools need attention...
-
-🧙‍♀️ This shouldn't happen since you installed FFmpeg!
-- Try restarting the bot
-- Check if FFmpeg is in your PATH
-- Video-only download should still work
-
-*Moss's video magic is still strong!* ✨`;
-        } else if (error.message.includes('filesize')) {
-            errorMessage += `📊 Video Too Large for Current Magic! 📊
-
-🌿 This video exceeds our 100MB limit.
-
-🧙‍♀️ Try a shorter video or different platform! ✨`;
-        } else {
-            errorMessage += `🌿 Unknown magical interference detected...
-
-${error.message || 'The video spirits are not cooperating today!'}
-
-🔮 Moss will grow stronger with each attempt! ✨🌱`;
+        // set up path
+        const videoPath = `./temp/${videoFile}`;
+        let audioPath = null;
+        if (audioFile) {
+            audioPath = `./temp/${audioFile}`;
         }
 
-        ctx.reply(errorMessage);
+        // process
+        await sendProgressUpdate(ctx, progressId, 'processing',
+            '🧠 Moss analyzes the captured essence for hidden culinary wisdom...');
+
+        const results = await intelligentContentExtraction(
+            videoPath,
+            audioPath,
+            ctx,
+            videoInfo,
+            progressId
+        );
+
+        // success
+        const videoStats = await fs.stat(videoPath);
+        const videoSizeMB = (videoStats.size / (1024 * 1024)).toFixed(1);
+
+        await ctx.telegram.editMessageText(
+            ctx.chat.id,
+            progressId,
+            null,
+            `📜🎉 *Moss has successfully captured the culinary essence!* 🎉📜
+
+📊 **Mystical Results:**
+${results.transcript ? '🗣️ Ancient voices deciphered' : '🔇 Silent video - no spoken wisdom detected'}
+${results.ocrText ? '👁️ Visual runes and text captured' : '👁️ No text overlays found in the portal'}
+${results.structuredRecipe ? '🍳 Recipe successfully extracted and organized!' : '📝 No structured recipe detected in the mystical content'}
+
+📁 **Scroll Storage:** ${videoSizeMB}MB preserved in temporary grimoire
+⚠️ *Files will be cleansed from storage in 1 hour* 
+
+🌱 *Moss has completed the ancient ritual!* ✨🌿`,
+            { parse_mode: 'Markdown' }
+        );
+
+        //  cleanup
+        setTimeout(async () => {
+            try {
+                await fs.remove(videoPath);
+                if (audioPath) await fs.remove(audioPath);
+                console.log(`🧹 Cleaned up: ${videoFile}`);
+            } catch (error) {
+                console.error('Cleanup error:', error);
+            }
+        }, 60 * 60 * 1000);
+
+        return results;
+
+    } catch (error) {
+        console.error('Download error:', error);
+
+        await ctx.telegram.editMessageText(
+            ctx.chat.id,
+            progressId,
+            null,
+            `🐛⚡ *The downloading ritual has been disrupted!* ⚡🐛
+
+🌿 *Moss encountered mystical interference...*
+
+*Error whispers:* ${error.message || 'The video spirits are not cooperating today!'}
+
+🧙‍♀️ *Possible causes:*
+- Video portal defenses are too strong
+- The sacred downloading tools need attention
+- Network magical interference
+- File too large for current spells
+
+*Moss will study new enchantments and grow stronger!* ✨🌱`,
+            { parse_mode: 'Markdown' }
+        );
         return null;
+    }
+};
+
+const intelligentContentExtraction = async (videoPath, audioPath, ctx, videoInfo, progressId) => {
+    try {
+        // audio
+        let transcript = null;
+        if (audioPath) {
+            transcript = await transcribeAudio(audioPath, ctx, videoInfo, true); // silent mode
+        }
+
+        //description
+        const descriptionText = extractVideoDescription(videoInfo);
+
+        // ocr
+        const contentAnalysis = { transcript, description: descriptionText, videoInfo };
+        const ocrText = await smartExtractTextFromVideo(videoPath, ctx, videoInfo, contentAnalysis, true); // silent mode
+
+        // parsing recipe
+        await sendProgressUpdate(ctx, progressId, 'parsing',
+            '🍳 Organizing culinary wisdom into structured recipe...');
+
+        const textSources = { transcript, description: descriptionText, ocrText };
+        const structuredRecipe = await parseRecipe(textSources, ctx, videoInfo, true); // silent mode
+
+        return { transcript, description: descriptionText, ocrText, structuredRecipe };
+
+    } catch (error) {
+        console.error('Content extraction error:', error);
+        throw error;
     }
 };
 
 const handleDownloadConfirmation = async (ctx, userMessage) => {
     const userId = ctx.from.id;
     const pending = pendingDownloads.get(userId);
-
     if (!pending) return false;
 
-    const confirmWords = ['yes', 'download', 'y', 'ok', 'sure', 'proceed', 'go'];
-    const cancelWords = ['no', 'cancel', 'stop', 'n', 'nope', 'skip'];
-
+    const confirmWords = ['yes', 'y', 'ok', 'download'];
+    const cancelWords = ['no', 'n', 'cancel', 'stop'];
     const lowerMessage = userMessage.toLowerCase().trim();
 
     if (confirmWords.some(word => lowerMessage.includes(word))) {
         pendingDownloads.delete(userId);
-        ctx.reply(`🔮⚡ *Moss prepares the downloading ritual!* ⚡🔮
+
+        await ctx.telegram.editMessageText(
+            ctx.chat.id,
+            pending.progressId,
+            null,
+            `🔮⚡ *Moss prepares the downloading ritual!* ⚡🔮
 
 🧙‍♀️ *Your wish is my command, dear cook!*
 📜 *Beginning the sacred video capture...*
 
-*Please wait while the magic unfolds...* ✨🌿`,
-            { parse_mode: 'Markdown' });
-        await downloadActualVideo(pending.url, ctx, pending.videoInfo);
+*Ancient magic is flowing...* 🌿⚡`,
+            { parse_mode: 'Markdown' }
+        );
+
+        await downloadActualVideo(pending.url, ctx, pending.videoInfo, pending.progressId);
         return true;
     } else if (cancelWords.some(word => lowerMessage.includes(word))) {
         pendingDownloads.delete(userId);
-        ctx.reply(`🌿✨ *Moss nods understandingly* ✨🌿
+        await ctx.telegram.editMessageText(
+            ctx.chat.id,
+            pending.progressId,
+            null,
+            `🌿✨ *Moss nods understandingly* ✨🌿
 
 🧙‍♀️ *No worries, dear cook! The video portal remains open in the ether.*
-📜 *Send another video link anytime you're ready for downloading magic!*
+📜 *Send another video link anytime you\'re ready for downloading magic!*
 
 *Moss returns to tending the grimoire...* 🍄📚`,
-            { parse_mode: 'Markdown' });
+            { parse_mode: 'Markdown' }
+        );
         return true;
     }
     return false;
 };
 
+const extractVideoDescription = (videoInfo) => {
+    const description = videoInfo.description || '';
+    const title = videoInfo.title || '';
 
+    let descriptionText = '';
+    if (title) descriptionText += `TITLE: ${title}\n`;
+    if (description && description.length > 10) {
+        descriptionText += `DESCRIPTION: ${description}\n`;
+    }
+
+    return descriptionText.trim();
+};
 
 module.exports = {
     downloadVideoInfo,
     downloadActualVideo,
     handleDownloadConfirmation,
-    processDownloadQueue,
+    processDownloadQueue: async () => {
+        if (isDownloading || downloadQueue.length === 0) return;
+        isDownloading = true;
+        const { url, ctx } = downloadQueue.shift();
+        try {
+            await downloadVideoInfo(url, ctx);
+        } finally {
+            isDownloading = false;
+            if (downloadQueue.length > 0) {
+                setTimeout(processDownloadQueue, 1000);
+            }
+        }
+    },
     isDownloading: () => isDownloading,
     addToQueue: (item) => downloadQueue.push(item),
     getQueueLength: () => downloadQueue.length

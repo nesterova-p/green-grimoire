@@ -2,51 +2,57 @@ const fs = require('fs-extra');
 const path = require('path');
 const { spawn } = require('child_process');
 
-const smartExtractTextFromVideo = async (videoPath, ctx, videoInfo, contentAnalysis) => {
+const smartExtractTextFromVideo = async (videoPath, ctx, videoInfo, contentAnalysis, silent = false) => {
     try {
         const ocrDecision = shouldRunEnhancedOCR(contentAnalysis, videoInfo);
 
         if (!ocrDecision.shouldRun) {
-            ctx.reply(`⚡ Smart OCR: SKIP ⚡
+            if (!silent) {
+                ctx.reply(`⚡ **OCR Skipped** ⚡
 
 🧠 ${ocrDecision.reason}
-✅ Available: ${ocrDecision.availableContent.join(', ')}
-⏰ Time saved: ~${ocrDecision.timeSaved}
+✅ Using: ${ocrDecision.availableContent.join(', ')}
 
 🌿 Being efficient! ✨`);
+            }
             return null;
         }
 
-        ctx.reply(`👁️ Enhanced OCR Activated ✨
+        if (!silent) {
+            ctx.reply(`👁️ **Visual Text Extraction** 👁️
 
 🎯 Strategy: ${ocrDecision.strategy}
-🔍 Frames: ${ocrDecision.frameCount}
-📝 Sampling: ${ocrDecision.sampling}
+🔍 Analyzing frames for text overlays...
 
-🌿 Starting advanced text extraction... 📜`);
+🌿 *Processing...* 📜`);
+        }
 
         const frames = await extractAdaptiveFrames(videoPath, videoInfo, ocrDecision.strategy);
 
         if (frames.length === 0) {
-            ctx.reply(`🖼️ No suitable frames extracted
+            if (!silent) {
+                ctx.reply(`🖼️ **No Text Found** 🖼️
 
-🌿 Video analysis complete - frame extraction failed.
-✨ Other content sources will provide the recipe!`);
+No readable text overlays detected.
+🌿 Audio and description will provide recipe content!`);
+            }
             return null;
         }
 
-        const extractedText = await processFramesWithEnhancedOCR(frames, ctx);
+        const extractedText = await processFramesWithEnhancedOCR(frames, ctx, silent);
         await cleanupFrames(frames);
 
         return extractedText;
 
     } catch (error) {
         console.error('Enhanced OCR error:', error);
-        ctx.reply(`🐛 OCR encountered resistance!
+        if (!silent) {
+            ctx.reply(`🐛 **OCR Error** 🐛
 
 ${error.message}
 
-🌿 Falling back to other content sources...`);
+🌿 Using other content sources instead...`);
+        }
         return null;
     }
 };
@@ -61,11 +67,9 @@ const shouldRunEnhancedOCR = (contentAnalysis, videoInfo) => {
     if (transcriptScore > 0) availableContent.push(`Speech(${transcriptScore}%)`);
     if (descriptionScore > 0) availableContent.push(`Desc(${descriptionScore}%)`);
 
-    // VISUAL VIDEO INDICATORS (language-agnostic)
     const isVisualVideo = detectVisualVideo(videoInfo);
     const isShortForm = videoInfo.duration && videoInfo.duration < 300; // 5 minutes
 
-    // Skip OCR only for excellent speech content
     if (transcriptScore >= 85 && transcript && transcript.length > 800) {
         return {
             shouldRun: false,
@@ -287,18 +291,18 @@ const extractSingleFrame = async (videoPath, timePoint, outputPath) => {
     });
 };
 
-const processFramesWithEnhancedOCR = async (frames, ctx) => {
+const processFramesWithEnhancedOCR = async (frames, ctx, silent = false) => {
     const extractedTexts = [];
     const uniqueTexts = new Set();
     let successCount = 0;
-    let progressCount = 0;
 
     const batchSize = 5;
     for (let i = 0; i < frames.length; i += batchSize) {
         const batch = frames.slice(i, i + batchSize);
 
-        progressCount += batch.length;
-        ctx.reply(`🔍 Processing frames ${i + 1}-${Math.min(i + batchSize, frames.length)} of ${frames.length}...`);
+        if (!silent && frames.length > 10) {
+            ctx.reply(`🔍 Processing frames ${i + 1}-${Math.min(i + batchSize, frames.length)} of ${frames.length}...`);
+        }
 
         for (const framePath of batch) {
             try {
@@ -322,7 +326,7 @@ const processFramesWithEnhancedOCR = async (frames, ctx) => {
             try {
                 await fs.remove(framePath);
             } catch (cleanupError) {
-                // silent cleanup
+                // silent cleanup failure
             }
         }
     }
@@ -330,21 +334,24 @@ const processFramesWithEnhancedOCR = async (frames, ctx) => {
     if (extractedTexts.length > 0) {
         const combinedText = extractedTexts.join('\n\n').trim();
 
-        ctx.reply(`📜 Enhanced OCR Results ✨
+        if (!silent) {
+            ctx.reply(`✅ **Text Extracted** ✅
 
-📊 Success: ${successCount} unique text blocks from ${frames.length} frames
-📝 Total characters: ${combinedText.length}
-🎯 Efficiency: ${Math.round((successCount / frames.length) * 100)}%
+📊 Found: ${successCount} unique text blocks from ${frames.length} frames
+📝 Total: ${combinedText.length} characters
+🎯 Success: ${Math.round((successCount / frames.length) * 100)}%
 
-✨ Text extraction complete! 🌿`);
+✨ Visual content captured! 🌿`);
+        }
 
         return combinedText;
     } else {
-        ctx.reply(`❌ No readable text found in ${frames.length} frames
+        if (!silent) {
+            ctx.reply(`❌ **No readable text found in ${frames.length} frames**
 
-🤔 Video may use audio/visual instruction without text overlays.
+🤔 Video uses audio/visual instruction without text overlays.
 🌿 Other content sources will provide the recipe!`);
-
+        }
         return null;
     }
 };

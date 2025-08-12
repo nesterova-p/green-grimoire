@@ -1,30 +1,28 @@
 const OpenAI = require('openai');
 const fs = require('fs-extra');
-const path = require('path');
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
-const transcribeAudio = async (audioPath, ctx, videoInfo) => {
+const transcribeAudio = async (audioPath, ctx, videoInfo, silent = false) => {
     try {
         if (!await fs.pathExists(audioPath)) {
             throw new Error('Audio file not found for transcription');
         }
 
-        const audioStats = await fs.stat(audioPath);
-        const audioSizeMB = (audioStats.size / (1024 * 1024)).toFixed(2);
-        const estimatedDuration = Math.round(audioStats.size / (24000));
+        if (!silent) {
+            const audioStats = await fs.stat(audioPath);
+            const audioSizeMB = (audioStats.size / (1024 * 1024)).toFixed(2);
 
-        ctx.reply(`🗣️✨ *Moss begins deciphering the mystical voices...* ✨🗣️
+            ctx.reply(`🗣️ **Transcribing Audio** 🗣️
 
-🔮 *Listening to ${audioSizeMB}MB of ancient cooking wisdom...*
-⏱️ *Estimated duration: ~${estimatedDuration} seconds*
-📝 *Translating speech into sacred text...*
-⏳ *This spell requires deep concentration...*
+🔮 Processing ${audioSizeMB}MB of audio...
+⏳ This may take a moment...
 
-*Ancient transcription magic is flowing...* 🌿📜`,
-            { parse_mode: 'Markdown' });
+*Converting speech to text...* 🌿`,
+                { parse_mode: 'Markdown' });
+        }
 
         const audioStream = fs.createReadStream(audioPath);
 
@@ -32,56 +30,47 @@ const transcribeAudio = async (audioPath, ctx, videoInfo) => {
             file: audioStream,
             model: 'whisper-1',
             response_format: 'text',
-            temperature: 0.2, // lower for more accurate transcription
+            temperature: 0.2,
             prompt: "This is a cooking video with recipe instructions, ingredients, and cooking techniques."
         });
 
         const transcript = transcription.trim();
 
         if (transcript && transcript.length > 10) {
-            const wordCount = transcript.split(' ').length;
+            if (!silent) {
+                const wordCount = transcript.split(' ').length;
 
-            ctx.reply(`📜✨ *The voices have been decoded!* ✨📜
+                ctx.reply(`✅ **Speech Transcribed** ✅
 
-🗣️ **Recipe Transcription:**
-"${transcript}"
+🗣️ **Content Preview:**
+"${transcript.substring(0, 200)}${transcript.length > 200 ? '...' : ''}"
 
-📊 **Transcription Stats:**
-- Words captured: ${wordCount}
-- Audio size: ${audioSizeMB}MB
-- Video: ${videoInfo.title}
-
-🌱 *Moss has captured the spoken culinary secrets!*
-🧙‍♀️ *The chef's wisdom is now preserved in text form!*
-📝 *Ready for recipe parsing magic!*
-
-*Ancient knowledge successfully transcribed!* ✨🌿`,
-                { parse_mode: 'Markdown' });
+📊 **Stats:** ${wordCount} words captured
+🌱 *Speech analysis complete!*`,
+                    { parse_mode: 'Markdown' });
+            }
 
             return transcript;
-
         } else {
-            ctx.reply(`🔇✨ *The voices are silent in this mystical portal...* ✨🔇
+            if (!silent) {
+                ctx.reply(`🔇 **No Speech Detected** 🔇
 
-🌿 *Moss detects:*
-- Video may have no spoken words
+Video contains:
 - Background music only
+- No narration
 - Very quiet audio
-- Non-speech content
 
-🧙‍♀️ *Not all cooking videos contain spoken recipes!*
-📹 *The video file is still safely captured for visual reference.*
-
-*Sometimes the magic is in watching, not listening!* ✨🌱`,
-                { parse_mode: 'Markdown' });
-
+*This is normal for many cooking videos!* 🌿`,
+                    { parse_mode: 'Markdown' });
+            }
             return null;
         }
 
     } catch (error) {
         console.error('Speech transcription error:', error);
 
-        let errorMessage = `🐛🗣️ *The transcription ritual encountered resistance!* 🗣️🐛\n\n`;
+        if (!silent) {
+            let errorMessage = `🐛 **Transcription Failed** 🐛\n\n`;
 
         if (error.message.includes('API key')) {
             errorMessage += `🔑 *OpenAI API Key Issue:*
@@ -103,10 +92,10 @@ const transcribeAudio = async (audioPath, ctx, videoInfo) => {
 ${error.message || 'The speech spirits are not cooperating today!'}`;
         }
 
-        errorMessage += `\n\n🎬 *The video and audio files are still safely captured!*
-🧙‍♀️ *Moss will grow stronger with each attempt!* ✨🌱`;
+            errorMessage += `\n\n🌿 *Other content sources will be used instead.*`;
+            ctx.reply(errorMessage, { parse_mode: 'Markdown' });
+        }
 
-        ctx.reply(errorMessage);
         return null;
     }
 };
