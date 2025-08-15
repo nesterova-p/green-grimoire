@@ -196,9 +196,13 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
             audioPath = `./temp/${audioFile}`;
         }
 
-        // process
+        await sendProgressUpdate(ctx, progressId, 'uploading',
+            '🎬 Delivering your original video first...');
+
+        const videoSent = await sendVideoToUser(ctx, videoPath, videoInfo, progressId);
+
         await sendProgressUpdate(ctx, progressId, 'processing',
-            '🧠 Moss analyzes the captured essence for hidden culinary wisdom...');
+            '🧠 Now analyzing the video content for recipe extraction...');
 
         const results = await intelligentContentExtraction(
             videoPath,
@@ -209,24 +213,19 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
         );
 
         // success
-        const videoStats = await fs.stat(videoPath);
-        const videoSizeMB = (videoStats.size / (1024 * 1024)).toFixed(1);
-
         await ctx.telegram.editMessageText(
             ctx.chat.id,
             progressId,
             null,
-            `📜🎉 *Moss has successfully captured the culinary essence!* 🎉📜
+            `✅ **Complete Recipe Package Delivered!** ✅
 
-📊 **Mystical Results:**
-${results.transcript ? '🗣️ Ancient voices deciphered' : '🔇 Silent video - no spoken wisdom detected'}
-${results.ocrText ? '👁️ Visual runes and text captured' : '👁️ No text overlays found in the portal'}
-${results.structuredRecipe ? '🍳 Recipe successfully extracted and organized!' : '📝 No structured recipe detected in the mystical content'}
+🎬 **Original video sent** ← Watch for visual cues
+📝 **Recipe extracted above** ← Follow step-by-step instructions  
+💾 **Both saved in your chat** ← Permanent cooking reference
 
-📁 **Scroll Storage:** ${videoSizeMB}MB preserved in temporary grimoire
-⚠️ *Files will be cleansed from storage in 1 hour* 
+🌿 *Perfect combo: Watch the video while following the recipe!* ✨
 
-🌱 *Moss has completed the ancient ritual!* ✨🌿`,
+⚠️ *Files will be cleaned from bot storage in 1 hour*`,
             { parse_mode: 'Markdown' }
         );
 
@@ -358,10 +357,110 @@ const extractVideoDescription = (videoInfo) => {
     return descriptionText.trim();
 };
 
+const sendVideoToUser = async (ctx, videoPath, videoInfo, progressId) => {
+    try {
+        if (!await fs.pathExists(videoPath)) {
+            console.log('Video file not found ');
+            return false;
+        }
+
+        const stats = await fs.stat(videoPath);
+        const fileSizeMB = stats.size / (1024 * 1024);
+
+        await sendProgressUpdate(ctx, progressId, 'uploading',
+            `📤 Preparing to send original video (${fileSizeMB.toFixed(1)}MB)...`);
+
+        if (fileSizeMB > 50) {
+            await ctx.reply(`📱 **Original Video Too Large** 📱
+
+🎬 **Video Size:** ${fileSizeMB.toFixed(1)}MB
+⚠️ **Telegram Limit:** 50MB max for bots
+
+🌿 **Your recipe is safely extracted above!**
+📱 **Original video remains at:** ${videoInfo.original_video_url || 'source platform'}
+
+*Moss suggests saving the recipe text and accessing the original video from the platform when needed!* ✨`,
+                { parse_mode: 'Markdown' });
+            return false;
+        }
+
+        const caption = `🎬 **Original Cooking Video** 🎬
+
+📝 **Title:** ${videoInfo.title || 'Cooking Video'}
+⏱️ **Duration:** ${videoInfo.duration ? `${Math.floor(videoInfo.duration / 60)}m ${Math.floor(videoInfo.duration % 60)}s` : 'Unknown'}
+
+🌿 *Recipe extracted above - video saved for reference!* ✨`;
+
+        await ctx.replyWithVideo(
+            { source: videoPath },
+            {
+                caption: caption,
+                parse_mode: 'Markdown',
+                duration: videoInfo.duration,
+                width: videoInfo.width,
+                height: videoInfo.height,
+                supports_streaming: true
+            }
+        );
+
+        await ctx.telegram.editMessageText(
+            ctx.chat.id,
+            progressId,
+            null,
+            `✅ **Complete Recipe Package Delivered!** ✅
+
+📝 **Recipe extracted and formatted** ← Ready for cooking
+🎬 **Original video preserved** ← For visual reference  
+💾 **Both saved in your chat** ← Permanent access
+
+🌿 *Your culinary grimoire grows stronger!* ✨
+
+⚠️ *Files will be cleaned from bot storage in 1 hour*`,
+            { parse_mode: 'Markdown' }
+        );
+
+        console.log(`📤 Video sent successfully: ${fileSizeMB.toFixed(1)}MB`);
+        return true;
+
+    } catch (error) {
+        console.error('Video sending error:', error);
+
+        if (error.message.includes('file too large')) {
+            await ctx.reply(`📱 **Video Upload Failed** 📱
+
+⚠️ File too large for Telegram upload
+🌿 Recipe text is safely extracted above!
+📱 Access original video at source platform
+
+*Moss will learn to compress videos in future updates!* ✨`,
+                { parse_mode: 'Markdown' });
+        } else if (error.message.includes('timeout')) {
+            await ctx.reply(`⏰ **Video Upload Timeout** ⏰
+
+🌐 Network too slow for video upload
+🌿 Recipe text is safely extracted above!
+📱 Try accessing original video at source platform
+
+*Your recipe knowledge is preserved!* ✨`,
+                { parse_mode: 'Markdown' });
+        } else {
+            await ctx.reply(`🐛 **Video Upload Error** 🐛
+
+${error.message || 'Unknown upload interference'}
+🌿 Recipe text is safely extracted above!
+
+*Moss will investigate this magical disruption!* ✨`,
+                { parse_mode: 'Markdown' });
+        }
+        return false;
+    }
+};
+
 module.exports = {
     downloadVideoInfo,
     downloadActualVideo,
     handleDownloadConfirmation,
+    sendVideoToUser,
     processDownloadQueue: async () => {
         if (isDownloading || downloadQueue.length === 0) return;
         isDownloading = true;
