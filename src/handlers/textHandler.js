@@ -15,9 +15,10 @@ const textHandler = async (ctx) => {
         return;
     }
 
-    // Check for download confirmation first
+   /* // Check for download confirmation first
     const handledConfirmation = await handleDownloadConfirmation(ctx, userMessage);
     if (handledConfirmation) return;
+   */
 
     // Check for video links
     if (detectedVideoLink(userMessage)) {

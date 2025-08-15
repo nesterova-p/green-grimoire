@@ -9,6 +9,23 @@ let isDownloading = false;
 const downloadQueue = [];
 const pendingDownloads = new Map();
 
+// buttons
+const createDownloadConfirmationButtons = (videoInfo) => {
+    return {
+        reply_markup:{
+            inline_keyboard:[
+                [
+                    { text: '✅ Yes, Download!', callback_data: 'download_confirm' },
+                    { text: '❌ No, Cancel', callback_data: 'download_cancel' }
+                ],
+                [
+                    { text: '📋 Video Info Only', callback_data: 'info_only' }
+                ]
+            ]
+        }
+    };
+};
+
 // single message that gets edited
 const sendProgressUpdate = async (ctx, messageId, status, details = '') => {
     const progressSteps = {
@@ -109,11 +126,11 @@ const downloadVideoInfo = async (url, ctx) => {
 🤔💭 *Moss has examined the mystical portal...* 💭🤔
 
 🔮 **Shall I capture this video in the physical realm?**
-📝 *Reply "yes" to proceed with the ancient ritual*
-🚫 *Reply "no" to let the portal fade away*
 
 *The choice is yours, dear cook!* ✨🌿`,
-            { parse_mode: 'Markdown' }
+            { parse_mode: 'Markdown',
+                    ...createDownloadConfirmationButtons(videoInfo),
+            }
         );
 
         pendingDownloads.set(ctx.from.id, { url, videoInfo, progressId });
@@ -461,6 +478,7 @@ module.exports = {
     downloadActualVideo,
     handleDownloadConfirmation,
     sendVideoToUser,
+    pendingDownloads,
     processDownloadQueue: async () => {
         if (isDownloading || downloadQueue.length === 0) return;
         isDownloading = true;
