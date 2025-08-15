@@ -1,8 +1,11 @@
 const OpenAI = require('openai');
-
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
+const {saveRecipe, addRecipeToCategory, addTagsToRecipe} = require('../database/recipeService');
+const { getCategoryByKey, suggestCategory } = require('../database/categoryService');
+const { detectPlatformFromUrl } = require('./platformDetection');
+
 
 const parseRecipe = async (textSources, ctx, videoInfo, silent = false) => {
     try {
@@ -131,19 +134,50 @@ RULES:
             return null;
         }
 
+        const titleMatch = recipeContent.match(/🍳 \*\*RECIPE TITLE:\*\*\s*(.+?)(?=\n|$)/);
+        const recipeTitle = titleMatch ? titleMatch[1].trim() : (videoInfo.title || 'Untitled Recipe');
+
         await ctx.reply(`🎉 **RECIPE EXTRACTED!** 🎉
 
 ${recipeContent}
 
-🌱 *Your recipe is ready for cooking adventures!*
-✨ *May your kitchen be blessed with delicious magic!*`,
+💾 *Saving to your recipe collection...* ✨`,
             { parse_mode: 'Markdown' });
+
+        // auto save
+        const savedRecipe = await saveRecipeToDatabase({
+            title: recipeTitle,
+            originalVideoUrl: videoInfo.original_video_url || videoInfo.webpage_url,
+            videoPlatform: detectPlatformFromUrl(videoInfo.original_video_url || videoInfo.webpage_url),
+            contentSources: textSources,
+            structuredRecipe: recipeContent,
+            sourceLanguage: 'auto',
+            targetLanguage: ctx.dbUser.preferred_language || 'en',
+            cookingTimeMinutes: extractCookingTime(recipeContent),
+            servings: extractServings(recipeContent),
+            difficulty: 'medium'
+        }, ctx.dbUser.id, ctx, recipeContent);
+
+        if (savedRecipe) {
+            await ctx.reply(`✅ **RECIPE SAVED TO YOUR COLLECTION!** ✅
+
+📚 **Recipe:** "${recipeTitle}"
+📂 **Category:** ${savedRecipe.categoryName}
+🏷️ **Tags:** ${savedRecipe.tags.join(', ')}
+
+🔍 *Use /my_recipes to see your collection!*
+📊 *Use /stats to see your cooking stats!*
+
+🌿 *Your culinary grimoire grows stronger!* ✨`,
+                { parse_mode: 'Markdown' });
+        }
 
         return {
             rawText: combinedText,
             structuredRecipe: recipeContent,
             videoTitle: videoInfo.title,
-            extractedFrom: Object.keys(textSources).filter(key => textSources[key])
+            extractedFrom: Object.keys(textSources).filter(key => textSources[key]),
+            savedRecipe: savedRecipe
         };
 
     } catch (error) {
@@ -183,6 +217,128 @@ const combineTextSources = (textSources) => {
     }
 
     return combinedText.trim();
+};
+
+const saveRecipeToDatabase = async (recipeData, userId, ctx, recipeContent) => {
+    try {
+        console.log(`Auto-saving recipe: "${recipeData.title}" for user ${userId}`);
+        const savedRecipe = await saveRecipe(recipeData, userId);
+        const suggestedCategoryKey = suggestCategory(recipeContent);
+        const category = await getCategoryByKey(suggestedCategoryKey);
+
+        if (category) {
+            await addRecipeToCategory(savedRecipe.id, category.id);
+            console.log(`Recipe categorized as: ${category.name_en}`);
+        }
+
+        const tags = extractTags(recipeContent);
+        if (tags.length > 0) {
+            await addTagsToRecipe(savedRecipe.id, tags, ctx.dbUser.preferred_language || 'en');
+            console.log(`Added tags: ${tags.join(', ')}`);
+        }
+
+        return {
+            id: savedRecipe.id,
+            categoryName: category ? category.name_en : 'Uncategorized',
+            tags: tags
+        };
+
+    } catch (error) {
+        console.error('Error saving recipe to database:', error);
+        await ctx.reply(`⚠️ **Recipe Extracted but Save Failed** ⚠️
+
+🍳 Your recipe is displayed above for immediate use!
+💾 However, it couldn't be saved to your collection.
+
+🔧 *This might be a temporary database issue.*
+📱 *Try saving manually later with /save_recipe*
+
+*Your cooking knowledge is still captured!* 🌿`,
+            { parse_mode: 'Markdown' });
+
+        return null;
+    }
+};
+
+
+const extractCookingTime = (recipeText) => {
+    const timePattern = /⏱️\s*\*\*COOKING TIME:\*\*\s*(.+?)(?=\n|$)/;
+    const match = recipeText.match(timePattern);
+
+    if (match) {
+        const timeText = match[1].toLowerCase();
+        const minuteMatch = timeText.match(/(\d+)\s*(?:min|minute)/);
+        const hourMatch = timeText.match(/(\d+)\s*(?:hour|hr)/);
+
+        let totalMinutes = 0;
+        if (hourMatch) totalMinutes += parseInt(hourMatch[1]) * 60;
+        if (minuteMatch) totalMinutes += parseInt(minuteMatch[1]);
+
+        return totalMinutes > 0 ? totalMinutes : null;
+    }
+    return null;
+};
+
+const extractServings = (recipeText) => {
+    const servingsPattern = /🍽️\s*\*\*SERVINGS:\*\*\s*(.+?)(?=\n|$)/;
+    const match = recipeText.match(servingsPattern);
+
+    if (match) {
+        const servingsText = match[1];
+        const numberMatch = servingsText.match(/(\d+)/);
+        return numberMatch ? parseInt(numberMatch[1]) : null;
+    }
+    return null;
+};
+
+const extractTags = (recipeText) => {
+    const tags = new Set();
+    const text = recipeText.toLowerCase();
+
+    const ingredients = [
+        'chicken', 'beef', 'pork', 'fish', 'salmon', 'shrimp',
+        'pasta', 'rice', 'noodles', 'bread',
+        'cheese', 'eggs', 'milk', 'butter',
+        'tomato', 'onion', 'garlic', 'potato',
+        'chocolate', 'vanilla', 'cinnamon',
+        'oil', 'butter', 'cream'
+    ];
+
+    const methods = [
+        'baked', 'fried', 'grilled', 'steamed', 'boiled',
+        'sautéed', 'roasted', 'braised', 'slow cook'
+    ];
+
+    const styles = [
+        'vegetarian', 'vegan', 'gluten-free', 'dairy-free',
+        'spicy', 'sweet', 'savory', 'healthy', 'quick', 'easy'
+    ];
+
+    ingredients.forEach(ingredient => {
+        if (text.includes(ingredient)) {
+            tags.add(ingredient);
+        }
+    });
+    methods.forEach(method => {
+        if (text.includes(method)) {
+            tags.add(method);
+        }
+    });
+
+    styles.forEach(style => {
+        if (text.includes(style)) {
+            tags.add(style);
+        }
+    });
+
+    const timeMinutes = extractCookingTime(recipeText);
+    if (timeMinutes) {
+        if (timeMinutes <= 15) tags.add('quick');
+        if (timeMinutes <= 30) tags.add('30-min-meal');
+        if (timeMinutes >= 120) tags.add('slow-cook');
+    }
+
+    return Array.from(tags).slice(0, 10); // limit 10 tags
 };
 
 module.exports = {

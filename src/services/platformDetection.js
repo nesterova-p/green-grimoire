@@ -37,8 +37,14 @@ const getPlatformSpecificOptions = (url) => {
             '--format', 'best[height<=720]',
             '--max-filesize', '100M'
         ];
+    } else if (url.includes('youtube')) {
+        // Better YouTube Shorts handling
+        return [
+            '--format', 'best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best',
+            '--max-filesize', '100M',
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        ];
     } else {
-        // YouTube and others
         return [
             '--format', 'best[height<=720]/bestvideo[height<=720]+bestaudio/best',
             '--max-filesize', '100M'
@@ -46,8 +52,18 @@ const getPlatformSpecificOptions = (url) => {
     }
 };
 
+const detectPlatformFromUrl = (url) => {
+    if (!url) return 'unknown';
+    if (url.includes('tiktok')) return 'tiktok';
+    if (url.includes('instagram')) return 'instagram';
+    if (url.includes('youtube')) return 'youtube';
+    if (url.includes('facebook')) return 'facebook';
+    return 'file_upload';
+};
+
 module.exports = {
     detectedVideoLink,
     getPlatformResponse,
-    getPlatformSpecificOptions
+    getPlatformSpecificOptions,
+    detectPlatformFromUrl
 };
