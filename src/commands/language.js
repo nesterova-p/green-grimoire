@@ -57,6 +57,7 @@ const setupLanguageHandlers = (bot) => {
                 await ctx.answerCbQuery(`${lang.flag} Language changed to ${lang.name}!`);
                 await updateUserLanguage(ctx.dbUser.id, lang.code);
                 ctx.dbUser.preferred_language = lang.code;
+                await updateUserCommandMenu(ctx, lang.code, bot);
 
                 await ctx.editMessageText(
                     `✅ **Language Updated** ✅
@@ -64,6 +65,7 @@ const setupLanguageHandlers = (bot) => {
 ${lang.flag} **New Language:** ${lang.name}
 🔄 **Recipe extraction will now use this language**
 🌿 **Interface updated for future interactions**
+📱 **Command menu updated to your language**
 
 *Moss adapts to your linguistic preferences!* ✨`,
                     { parse_mode: 'Markdown' }
@@ -77,8 +79,49 @@ ${lang.flag} **New Language:** ${lang.name}
     });
 };
 
+const updateUserCommandMenu = async (ctx, languageCode, botInstance) => {
+    try {
+        const commandSets = {
+            'en': [
+                { command: 'start', description: '🌿 Welcome to GreenGrimoire!' },
+                { command: 'my_recipes', description: '📚 View your recipe collection' },
+                { command: 'stats', description: '📊 View your cooking statistics' },
+                { command: 'language', description: '🌍 Change language preferences' },
+                { command: 'help', description: '❓ Get help and instructions' },
+                { command: 'ping', description: '🏓 Test bot responsiveness' }
+            ],
+            'pl': [
+                { command: 'start', description: '🌿 Witaj w GreenGrimoire!' },
+                { command: 'my_recipes', description: '📚 Zobacz kolekcję przepisów' },
+                { command: 'stats', description: '📊 Zobacz statystyki gotowania' },
+                { command: 'language', description: '🌍 Zmień język' },
+                { command: 'help', description: '❓ Uzyskaj pomoc' },
+                { command: 'ping', description: '🏓 Testuj bota' }
+            ],
+            'uk': [
+                { command: 'start', description: '🌿 Ласкаво просимо до GreenGrimoire!' },
+                { command: 'help', description: '❓ Отримати допомогу та інструкції' },
+                { command: 'my_recipes', description: '📚 Переглянути колекцію рецептів' },
+                { command: 'stats', description: '📊 Переглянути статистику рецептів' },
+                { command: 'language', description: '🌍 Змінити мовні налаштування' },
+                { command: 'ping', description: '🏓 Перевірити відгукування бота' }
+            ],
+        };
+
+        const commands = commandSets[languageCode] || commandSets['en'];
+        await botInstance.telegram.setMyCommands(commands, {
+            scope: { type: 'chat', chat_id: ctx.chat.id }
+        });
+        console.log(`📱 Updated command menu for user ${ctx.dbUser.id} (${languageCode})`);
+
+    } catch (error) {
+        console.error('Error updating user command menu:', error);
+    }
+};
+
 module.exports = {
     languageCommand,
     setupLanguageHandlers,
-    getLanguageName
+    getLanguageName,
+    updateUserCommandMenu
 };

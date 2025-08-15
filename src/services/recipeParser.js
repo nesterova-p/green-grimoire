@@ -7,7 +7,8 @@ const { getCategoryByKey, suggestCategory } = require('../database/categoryServi
 const { detectPlatformFromUrl } = require('./platformDetection');
 
 
-const parseRecipe = async (textSources, ctx, videoInfo, silent = false) => {
+const parseRecipe = async (textSources, ctx, videoInfo, silent = false, videoMessageInfo = null) => {
+
     try {
         const combinedText = combineTextSources(textSources);
 
@@ -156,7 +157,7 @@ ${recipeContent}
             cookingTimeMinutes: extractCookingTime(recipeContent),
             servings: extractServings(recipeContent),
             difficulty: 'medium'
-        }, ctx.dbUser.id, ctx, recipeContent);
+        }, ctx.dbUser.id, ctx, recipeContent, videoMessageInfo);
 
         if (savedRecipe) {
             await ctx.reply(`✅ **RECIPE SAVED TO YOUR COLLECTION!** ✅
@@ -219,10 +220,16 @@ const combineTextSources = (textSources) => {
     return combinedText.trim();
 };
 
-const saveRecipeToDatabase = async (recipeData, userId, ctx, recipeContent) => {
+const saveRecipeToDatabase = async (recipeData, userId, ctx, recipeContent, videoMessageInfo = null) => {
     try {
         console.log(`Auto-saving recipe: "${recipeData.title}" for user ${userId}`);
-        const savedRecipe = await saveRecipe(recipeData, userId);
+        const recipeDataWithVideo = {
+            ...recipeData,
+            videoMessageId: videoMessageInfo?.messageId || null,
+            videoFileId: videoMessageInfo?.fileId || null,
+            videoChatId: videoMessageInfo?.chatId || null
+        };
+        const savedRecipe = await saveRecipe(recipeDataWithVideo, userId);
         const suggestedCategoryKey = suggestCategory(recipeContent);
         const category = await getCategoryByKey(suggestedCategoryKey);
 

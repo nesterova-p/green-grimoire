@@ -100,13 +100,26 @@ const setupRecipeHandlers = (bot) => {
                 return;
             }
 
+        if (recipe.video_file_id && recipe.video_chat_id) {
+            try {
+                await ctx.replyWithVideo(recipe.video_file_id, {
+                    caption: `🎬 **Original Video** 🎬\n📝 **Recipe:** ${recipe.title}\n🌿 *Refreshing your memory with the source video!* ✨`,
+                    parse_mode: 'Markdown'
+                });
+            } catch (videoError) {
+                console.log('Could not resend video (might be expired):', videoError.message);
+                if (recipe.original_video_url) {
+                    await ctx.reply(`🔗 **Original Video:** ${recipe.original_video_url}`);
+                }
+            }
+        }
+
             const message = `📖 **${recipe.title}** 📖
 
 ${recipe.structured_recipe}
 
 📅 **Saved:** ${new Date(recipe.created_at).toLocaleDateString()}
 📱 **Platform:** ${recipe.video_platform}
-🔗 **Original:** ${recipe.original_video_url || 'N/A'}
 
 🌿 *From your digital grimoire* ✨`;
 

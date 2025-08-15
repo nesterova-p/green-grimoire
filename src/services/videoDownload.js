@@ -216,7 +216,8 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
         await sendProgressUpdate(ctx, progressId, 'uploading',
             '🎬 Delivering your original video first...');
 
-        const videoSent = await sendVideoToUser(ctx, videoPath, videoInfo, progressId);
+        const videoMessageInfo = await sendVideoToUser(ctx, videoPath, videoInfo, progressId);
+
 
         await sendProgressUpdate(ctx, progressId, 'processing',
             '🧠 Now analyzing the video content for recipe extraction...');
@@ -226,7 +227,8 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
             audioPath,
             ctx,
             videoInfo,
-            progressId
+            progressId,
+            videoMessageInfo
         );
 
         // success
@@ -285,7 +287,7 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
     }
 };
 
-const intelligentContentExtraction = async (videoPath, audioPath, ctx, videoInfo, progressId) => {
+const intelligentContentExtraction = async (videoPath, audioPath, ctx, videoInfo, progressId, videoMessageInfo = null) => {
     try {
         // audio
         let transcript = null;
@@ -305,7 +307,7 @@ const intelligentContentExtraction = async (videoPath, audioPath, ctx, videoInfo
             '🍳 Organizing culinary wisdom into structured recipe...');
 
         const textSources = { transcript, description: descriptionText, ocrText };
-        const structuredRecipe = await parseRecipe(textSources, ctx, videoInfo, true); // silent mode
+        const structuredRecipe = await parseRecipe(textSources, ctx, videoInfo, true, videoMessageInfo); // silent mode
 
         return { transcript, description: descriptionText, ocrText, structuredRecipe };
 
@@ -378,7 +380,7 @@ const sendVideoToUser = async (ctx, videoPath, videoInfo, progressId) => {
     try {
         if (!await fs.pathExists(videoPath)) {
             console.log('Video file not found ');
-            return false;
+            return { success: false };
         }
 
         const stats = await fs.stat(videoPath);
@@ -393,22 +395,23 @@ const sendVideoToUser = async (ctx, videoPath, videoInfo, progressId) => {
 🎬 **Video Size:** ${fileSizeMB.toFixed(1)}MB
 ⚠️ **Telegram Limit:** 50MB max for bots
 
-🌿 **Your recipe is safely extracted above!**
-📱 **Original video remains at:** ${videoInfo.original_video_url || 'source platform'}
+📱 **Original video at:** ${videoInfo.original_video_url || 'source platform'}
+🔍 **Recipe extraction continues below...**
 
-*Moss suggests saving the recipe text and accessing the original video from the platform when needed!* ✨`,
+*Moss will still extract the cooking wisdom for you!* ✨`,
                 { parse_mode: 'Markdown' });
-            return false;
+            return { success: false };
         }
 
         const caption = `🎬 **Original Cooking Video** 🎬
 
 📝 **Title:** ${videoInfo.title || 'Cooking Video'}
 ⏱️ **Duration:** ${videoInfo.duration ? `${Math.floor(videoInfo.duration / 60)}m ${Math.floor(videoInfo.duration % 60)}s` : 'Unknown'}
+📱 **Platform:** ${videoInfo.video_platform || 'Unknown'}
 
-🌿 *Recipe extracted above - video saved for reference!* ✨`;
+🔍 *Recipe extraction in progress... Stand by!* ⚡`;
 
-        await ctx.replyWithVideo(
+        const sentVideo = await ctx.replyWithVideo(
             { source: videoPath },
             {
                 caption: caption,
@@ -420,24 +423,14 @@ const sendVideoToUser = async (ctx, videoPath, videoInfo, progressId) => {
             }
         );
 
-        await ctx.telegram.editMessageText(
-            ctx.chat.id,
-            progressId,
-            null,
-            `✅ **Complete Recipe Package Delivered!** ✅
-
-📝 **Recipe extracted and formatted** ← Ready for cooking
-🎬 **Original video preserved** ← For visual reference  
-💾 **Both saved in your chat** ← Permanent access
-
-🌿 *Your culinary grimoire grows stronger!* ✨
-
-⚠️ *Files will be cleaned from bot storage in 1 hour*`,
-            { parse_mode: 'Markdown' }
-        );
-
         console.log(`📤 Video sent successfully: ${fileSizeMB.toFixed(1)}MB`);
-        return true;
+        console.log(`📋 Video message ID: ${sentVideo.message_id}, File ID: ${sentVideo.video.file_id}`);
+        return {
+            success: true,
+            messageId: sentVideo.message_id,
+            fileId: sentVideo.video.file_id,
+            chatId: ctx.chat.id
+        };
 
     } catch (error) {
         console.error('Video sending error:', error);
@@ -446,30 +439,31 @@ const sendVideoToUser = async (ctx, videoPath, videoInfo, progressId) => {
             await ctx.reply(`📱 **Video Upload Failed** 📱
 
 ⚠️ File too large for Telegram upload
-🌿 Recipe text is safely extracted above!
 📱 Access original video at source platform
+🔍 **Recipe extraction continues below...**
 
-*Moss will learn to compress videos in future updates!* ✨`,
+*Moss will extract the cooking knowledge for you!* ✨`,
                 { parse_mode: 'Markdown' });
         } else if (error.message.includes('timeout')) {
             await ctx.reply(`⏰ **Video Upload Timeout** ⏰
 
 🌐 Network too slow for video upload
-🌿 Recipe text is safely extracted above!
 📱 Try accessing original video at source platform
+🔍 **Recipe extraction continues below...**
 
-*Your recipe knowledge is preserved!* ✨`,
+*The cooking wisdom will still be captured!* ✨`,
                 { parse_mode: 'Markdown' });
         } else {
             await ctx.reply(`🐛 **Video Upload Error** 🐛
 
 ${error.message || 'Unknown upload interference'}
-🌿 Recipe text is safely extracted above!
+📱 Video may be accessible at source platform
+🔍 **Recipe extraction continues below...**
 
-*Moss will investigate this magical disruption!* ✨`,
+*Moss will still capture the culinary secrets!* ✨`,
                 { parse_mode: 'Markdown' });
         }
-        return false;
+        return { success: false };
     }
 };
 

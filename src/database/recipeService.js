@@ -11,23 +11,26 @@ const saveRecipe = async (recipeData, userId) => {
         targetLanguage = 'en',
         cookingTimeMinutes = null,
         servings = null,
-        difficulty = 'medium'
+        difficulty = 'medium',
+        videoMessageId = null,
+        videoFileId = null,
+        videoChatId = null
     } = recipeData;
 
     try {
         const result = await query(
             `INSERT INTO recipes (
-                user_id, title, original_video_url, video_platform, 
-                content_sources, structured_recipe, source_language, 
-                target_language, cooking_time_minutes, servings, difficulty
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
-            RETURNING *`,
+                user_id, title, original_video_url, video_platform,
+                content_sources, structured_recipe, source_language,
+                target_language, cooking_time_minutes, servings, difficulty,
+                video_message_id, video_file_id, video_chat_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                 RETURNING *`,
             [
-                userId, title, originalVideoUrl,
-                videoPlatform, JSON.stringify(contentSources),
-                structuredRecipe, sourceLanguage,
-                targetLanguage, cookingTimeMinutes,
-                servings, difficulty
+                userId, title, originalVideoUrl, videoPlatform,
+                JSON.stringify(contentSources), structuredRecipe, sourceLanguage,
+                targetLanguage, cookingTimeMinutes, servings, difficulty,
+                videoMessageId, videoFileId, videoChatId
             ]
         );
         const savedRecipe = result.rows[0];

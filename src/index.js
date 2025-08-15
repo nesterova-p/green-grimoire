@@ -11,7 +11,7 @@ const helpCommand = require('./commands/help');
 const pingCommand = require('./commands/ping');
 const myRecipesCommand = require('./commands/myRecipes');
 const statsCommand = require('./commands/stats');
-const { languageCommand, setupLanguageHandlers } = require('./commands/language');
+const { languageCommand, setupLanguageHandlers, updateUserCommandMenu  } = require('./commands/language');
 
 // import handlers
 const textHandler = require('./handlers/textHandler');
@@ -72,20 +72,78 @@ bot.catch((err, ctx) => {
         .catch(() => console.error('Could not even send error message!'));
 });
 
-// launch
-const startBot = async () => {
-    try{
-        console.log('🌿 Starting GreenGrimoire bot...');
-        await initDatabase();
-        await bot.launch();
-        console.log('✅ Moss is alive and connected to database!');
-        console.log('🔮 Users will be automatically saved to database!');
-        console.log('💾 Try /my_recipes and /stats commands!');
-        console.log('🔘 Button-powered interface ready!');
+const setupBotCommands = async () => {
+    try {
+        const commands = [
+            { command: 'start', description: '🌿 Welcome to GreenGrimoire!' },
+            { command: 'help', description: '❓ Get help and instructions' },
+            { command: 'my_recipes', description: '📚 View your recipe collection' },
+            { command: 'stats', description: '📊 View your cooking statistics' },
+            { command: 'language', description: '🌍 Change language preferences' },
+            { command: 'ping', description: '🏓 Test bot responsiveness' }
+        ];
+
+        await bot.telegram.setMyCommands(commands);
+        console.log('✅ Bot command menu configured successfully!');
+        console.log('📱 Users will see a menu button next to the text input!');
 
     } catch (error) {
-        console.error('❌ Failed to start bot:', error);
+        console.error('❌ Error setting bot commands:', error);
+    }
+};
+
+// launch
+const startBot = async () => {
+    try {
+        console.log('🌿 Starting GreenGrimoire bot...');
+        await initDatabase();
+        await setupBotCommands();
+        await setupLanguageSpecificCommands();
+        await bot.launch();
+        console.log('🌿  GreenGrimoire is alive and ready!');
+    } catch (error) {
+        console.error('❌ Failed to start bot:', error.message);
         process.exit(1);
+    }
+};
+
+// language
+const setupLanguageSpecificCommands = async () => {
+    try {
+        const englishCommands = [
+            { command: 'start', description: '🌿 Welcome to GreenGrimoire!' },
+            { command: 'help', description: '❓ Get help and instructions' },
+            { command: 'my_recipes', description: '📚 View your recipe collection' },
+            { command: 'stats', description: '📊 View your cooking statistics' },
+            { command: 'language', description: '🌍 Change language preferences' },
+            { command: 'ping', description: '🏓 Test bot responsiveness' }
+        ];
+
+        const polishCommands = [
+            { command: 'start', description: '🌿 Witaj w GreenGrimoire!' },
+            { command: 'help', description: '❓ Uzyskaj pomoc i instrukcje' },
+            { command: 'my_recipes', description: '📚 Zobacz swoją kolekcję przepisów' },
+            { command: 'stats', description: '📊 Zobacz swoje statystyki gotowania' },
+            { command: 'language', description: '🌍 Zmień preferencje językowe' },
+            { command: 'ping', description: '🏓 Testuj responsywność bota' }
+        ];
+
+        const ukrainianCommands = [
+            { command: 'start', description: '🌿 Ласкаво просимо до GreenGrimoire!' },
+            { command: 'help', description: '❓ Отримати допомогу та інструкції' },
+            { command: 'my_recipes', description: '📚 Переглянути колекцію рецептів' },
+            { command: 'stats', description: '📊 Переглянути статистику рецептів' },
+            { command: 'language', description: '🌍 Змінити мовні налаштування' },
+            { command: 'ping', description: '🏓 Перевірити відгукування бота' }
+        ];
+        await bot.telegram.setMyCommands(englishCommands, { language_code: 'en' });
+        await bot.telegram.setMyCommands(polishCommands, { language_code: 'pl' });
+        await bot.telegram.setMyCommands(ukrainianCommands, { language_code: 'uk' });
+
+        console.log('Language specific command menu configured!');
+
+    } catch (error) {
+        console.error('Error setting language specific commands:', error);
     }
 };
 
