@@ -85,6 +85,7 @@ const initializeServices = async () => {
     try {
         personalForumService = new PersonalForumService(bot.telegram);
         global.personalForumService = personalForumService;
+        personalForumService.setupInteractiveHandlers(bot)
         console.log('✅ Personal forum service initialized');
     } catch (error) {
         console.error('❌ Error initializing services:', error);
