@@ -5,7 +5,8 @@ const openai = new OpenAI({
 const {saveRecipe, addRecipeToCategory, addTagsToRecipe} = require('../database/recipeService');
 const { getCategoryByKey, suggestCategory } = require('../database/categoryService');
 const { detectPlatformFromUrl } = require('./platformDetection');
-
+const PersonalForumService = require('../services/PersonalForumService');
+const { query } = require('../database/connection');
 
 const parseRecipe = async (textSources, ctx, videoInfo, silent = false, videoMessageInfo = null) => {
 
@@ -244,10 +245,93 @@ const saveRecipeToDatabase = async (recipeData, userId, ctx, recipeContent, vide
             console.log(`Added tags: ${tags.join(', ')}`);
         }
 
+        let forumPosted = false;
+        const personalForumService = global.personalForumService;
+
+        if (personalForumService && category) {
+            try {
+                const userForum = await personalForumService.getUserPersonalForum(userId);
+
+                if (userForum && userForum.setup_completed) {
+                    const recipeWithFullData = {
+                        ...savedRecipe,
+                        structured_recipe: recipeContent,
+                        video_file_id: videoMessageInfo?.fileId,
+                        title: recipeData.title,
+                        created_at: new Date().toISOString(),
+                        video_platform: recipeData.videoPlatform
+                    };
+
+                    const forumMessageId = await personalForumService.postRecipeToPersonalForum(
+                        recipeWithFullData,
+                        userId,
+                        category.key
+                    );
+
+                    if (forumMessageId) {
+                        const forumTopicId = userForum.topics?.find(t => t.category_key === category.key)?.topic_id;
+
+                        await query(
+                            `UPDATE recipes 
+                             SET personal_forum_id = $1, forum_message_id = $2, forum_topic_id = $3 
+                             WHERE id = $4`,
+                            [userForum.id, forumMessageId, forumTopicId, savedRecipe.id]
+                        );
+
+                        forumPosted = true;
+                        console.log(`📝 Recipe posted to personal forum: ${category.key}`);
+
+                        setTimeout(async () => {
+                            try {
+                                const forumLink = userForum.forum_chat_id ?
+                                    `https://t.me/c/${Math.abs(userForum.forum_chat_id).toString().slice(4)}/${forumTopicId || '1'}` :
+                                    'your personal forum';
+
+                                await ctx.reply(`✅ **Recipe Also Posted to Your Personal Forum!** ✅
+
+📂 **Category Topic:** ${category.icon} ${category.name_en}
+👥 **Your Forum:** [View in ${category.name_en}](${forumLink})
+
+🌿 *Your recipe is now beautifully organized and easy to find!* ✨
+
+📱 *Browse all your recipes by category in your personal forum!*`,
+                                    { parse_mode: 'Markdown' });
+                            } catch (notificationError) {
+                                console.log('Could not send forum notification:', notificationError.message);
+                            }
+                        }, 2000);
+                    }
+                } else {
+                    setTimeout(async () => {
+                        try {
+                            await ctx.reply(`💡 **Want Better Organization?** 💡
+
+Your recipe was saved successfully! For even better organization, set up your personal recipe forum:
+
+🚀 **Send /start** to create your personal forum with:
+• 📂 Automatic categorization by dish type
+• 🎬 Original videos preserved with recipes  
+• 🔍 Easy browsing by category topics
+• 📱 Beautiful organized interface
+
+*Transform your recipe collection today!* 🌿✨`,
+                                { parse_mode: 'Markdown' });
+                        } catch (reminderError) {
+                            console.log('Could not send forum reminder:', reminderError.message);
+                        }
+                    }, 3000);
+                }
+
+            } catch (forumError) {
+                console.error('Error posting to personal forum:', forumError);
+            }
+        }
+
         return {
             id: savedRecipe.id,
             categoryName: category ? category.name_en : 'Uncategorized',
-            tags: tags
+            tags: tags,
+            forumPosted: forumPosted
         };
 
     } catch (error) {
@@ -258,7 +342,7 @@ const saveRecipeToDatabase = async (recipeData, userId, ctx, recipeContent, vide
 💾 However, it couldn't be saved to your collection.
 
 🔧 *This might be a temporary database issue.*
-📱 *Try saving manually later with /save_recipe*
+📱 *Try saving manually later with /my_recipes*
 
 *Your cooking knowledge is still captured!* 🌿`,
             { parse_mode: 'Markdown' });
@@ -349,5 +433,6 @@ const extractTags = (recipeText) => {
 };
 
 module.exports = {
-    parseRecipe
+    parseRecipe,
+    saveRecipeToDatabase
 };
