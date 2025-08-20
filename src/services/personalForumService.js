@@ -9,30 +9,30 @@ class PersonalForumService {
         this.setupSteps = {
             'step_1': {
                 title: '📱 Create Your Group',
-                instruction: `🏗️ **Step 1: Create Your Personal Group**
+                instruction: `🏗️ *Step 1: Create Your Personal Group*
 
-📱 **Instructions:**
+📱 *Instructions:*
 • Open Telegram
-• Tap the "New Group" button
-• Name it: "🌿 [Your Name]'s Recipe Grimoire"
-• Add **only yourself** (keep it private!)
+• Tap the *"New Group"* button
+• Name it: *"🌿 [Your Name]'s Recipe Grimoire"*
+• Add *only yourself* (keep it private!)
 
-🎯 **Important:** Don't add anyone else yet - this will be your personal recipe collection!
+🎯 *Important:* Don't add anyone else yet - this will be your personal recipe collection!
 
 ✨ *Once you've created the group, tap "Done" below!*`,
                 nextStep: 'step_2'
             },
             'step_2': {
                 title: '🔄 Convert to Forum',
-                instruction: `🔄 **Step 2: Enable Forum Features**
+                instruction: `🔄 *Step 2: Enable Forum Features*
 
-⚙️ **Instructions:**
+⚙️ *Instructions:*
 • Go to your new group settings
 • Tap "Group Type"  
-• Toggle **"Forum"** ON
+• Toggle *"Forum"* ON
 • Confirm the change
 
-📂 **What this does:**
+📂 *What this does:*
 • Enables category topics (like folders)
 • Allows organized recipe sections
 • Creates a beautiful browsing experience
@@ -42,17 +42,17 @@ class PersonalForumService {
             },
             'step_3': {
                 title: '🤖 Add Bot as Admin',
-                instruction: `🤖 **Step 3: Add Me as Administrator**
+                instruction: `🤖 *Step 3: Add Me as Administrator*
 
-👥 **Instructions:**
+👥 *Instructions:*
 • In your forum group settings
 • Tap "Administrators"
-• Tap "Add Administrator"
+• Tap *"Add Administrator"*
 • Search and add: @{BOT_USERNAME}
 • ✅ Enable "Manage Topics" permission
 • ✅ Enable "Delete Messages" permission
 
-🔑 **Why I need admin:**
+🔑 *Why I need admin:*
 • To create recipe category topics
 • To organize recipes automatically
 • To manage your collection
@@ -62,17 +62,17 @@ class PersonalForumService {
             },
             'step_4': {
                 title: '🔮 Verify Setup',
-                instruction: `🔮 **Step 4: Final Verification**
+                instruction: `🔮 *Step 4: Final Verification*
 
-📨 **Instructions:**
-- Go to your forum group
-- Send this setup code:
-**{SETUP_CODE}**
+📨 *Instructions:*
+• Go to your forum group
+• Send this setup code:
+*{SETUP_CODE}*
 
-🎯 **What happens next:**
-- I will join your forum automatically
-- I will create recipe category topics
-- Your personal grimoire will be ready!
+🎯 *What happens next:*
+• I'll join your forum automatically
+• I'll create recipe category topics
+• Your personal grimoire will be ready!
 
 📱 *Send the code in your forum and wait for magic!*`,
                 nextStep: 'complete'
@@ -91,17 +91,17 @@ class PersonalForumService {
                     `https://t.me/c/${Math.abs(existingForum.forum_chat_id).toString().slice(4)}/1` :
                     'your personal forum';
 
-                const welcomeBackMessage = `🌿✨ **Welcome back, ${userName}!** ✨🌿
+                const welcomeBackMessage = `🌿✨ *Welcome back, ${userName}!* ✨🌿
 
 *Moss recognizes a fellow culinary adventurer!*
 
-📚 **Your Personal Recipe Grimoire is Ready!**
+📚 *Your Personal Recipe Grimoire is Ready!*
 
-📱 **Your Forum:** [${existingForum.forum_name}](${forumLink})
-📂 **Categories:** ${existingForum.categories_count || 6} recipe topics organized
-📝 **Recipes:** ${existingForum.recipes_count || 0} culinary treasures saved
+📱 *Your Forum:* [${existingForum.forum_name}](${forumLink})
+📂 *Categories:* ${existingForum.categories_count || 6} recipe topics organized
+📝 *Recipes:* ${existingForum.recipes_count || 0} culinary treasures saved
 
-🍳 **Ready to cook?** Send me any cooking video link and I'll:
+🍳 *Ready to cook?* Send me any cooking video link and I'll:
 • 🔮 Extract the recipe using ancient AI magic
 • 📂 Organize it in the appropriate category topic
 • 🎬 Keep the original video for reference
@@ -119,6 +119,7 @@ class PersonalForumService {
                 await this.resumeInteractiveSetup(ctx, existingForum);
                 return;
             }
+
             await this.startInteractiveSetup(ctx, userName);
         } catch (error) {
             console.error('Error initiating forum setup:', error);
@@ -147,20 +148,20 @@ class PersonalForumService {
         }, this.setupTimeout);
 
         // welcome
-        const welcomeMessage = `🌿✨ **Welcome to GreenGrimoire Setup!** ✨🌿
+        const welcomeMessage = `🌿✨ *Welcome to GreenGrimoire Setup!* ✨🌿
 
 *Hi ${userName}! Let's create your personal recipe organization system!*
 
-🎯 **What we'll set up:**
+🎯 *What we'll set up:*
 • 📱 Personal recipe forum with organized categories
 • 🤖 Automatic recipe extraction and categorization  
 • 🎬 Original videos preserved with recipes
 • 🔍 Easy browsing by dish type
 
-⏱️ **Time needed:** About 2-3 minutes
-📝 **Steps:** 4 simple steps
+⏱️ *Time needed:* About 2-3 minutes
+📝 *Steps:* 4 simple steps
 
-🚀 **Ready to begin your culinary journey?**`;
+🚀 *Ready to begin your culinary journey?*`;
 
         await ctx.reply(welcomeMessage, {
             parse_mode: 'Markdown',
@@ -179,11 +180,11 @@ class PersonalForumService {
     }
 
     async resumeInteractiveSetup(ctx, existingForum) {
-        await ctx.reply(`🔄 **Setup In Progress** 🔄
+        await ctx.reply(`🔄 *Setup In Progress* 🔄
 
 Hi! I see you started setting up your personal recipe forum but didn't complete it.
 
-🎯 **Your Forum:** "${existingForum.forum_name}"
+🎯 *Your Forum:* "${existingForum.forum_name}"
 
 Would you like to continue where you left off or start fresh?`,
             {
@@ -222,11 +223,11 @@ Would you like to continue where you left off or start fresh?`,
         const stepNumber = parseInt(setupState.currentStep.split('_')[1]);
         const progressBar = '🟢'.repeat(stepNumber) + '⚪'.repeat(4 - stepNumber);
 
-        const message = `**${currentStep.title}**
+        const message = `*${currentStep.title}*
 
 ${instruction}
 
-📊 **Progress:** ${progressBar} (${stepNumber}/4)`;
+📊 *Progress:* ${progressBar} (${stepNumber}/4)`;
 
         const keyboard = {
             inline_keyboard: [
@@ -253,11 +254,11 @@ ${instruction}
                     messageId,
                     null,
                     message,
-                    { parse_mode: 'HTML', reply_markup: keyboard }
+                    { parse_mode: 'Markdown', reply_markup: keyboard }
                 );
             } else {
                 const sent = await ctx.reply(message, {
-                    parse_mode: 'HTML',
+                    parse_mode: 'Markdown',
                     reply_markup: keyboard
                 });
                 return sent.message_id;
@@ -265,7 +266,7 @@ ${instruction}
         } catch (error) {
             console.error('Error showing setup step:', error);
             await ctx.reply(message, {
-                parse_mode: 'HTML',
+                parse_mode: 'Markdown',
                 reply_markup: keyboard
             });
         }
@@ -302,22 +303,22 @@ ${instruction}
         const userId = ctx.dbUser.id;
         const setupState = this.pendingSetups.get(userId);
 
-        const message = `🎉 <b>Setup Instructions Complete!</b> 🎉
+        const message = `🎉 *Setup Instructions Complete!* 🎉
 
-✅ <b>All steps finished!</b>
-📱 <b>Your forum should be ready</b>
-🤖 <b>Bot has been added as admin</b>
+✅ *All steps finished!*
+📱 *Your forum should be ready*
+🤖 *Bot has been added as admin*
 
-🔮 <b>Final Step:</b>
-Go to your forum and send: <b>${setupState.setupCode}</b>
+🔮 *Final Step:*
+Go to your forum and send: *${setupState.setupCode}*
 
-⏳ <b>Waiting for verification...</b>
-<i>Once you send the code, I will automatically set up your recipe categories!</i>
+⏳ *Waiting for verification...*
+*Once you send the code, I'll automatically set up your recipe categories!*
 
-🌿 <i>Your personal grimoire is almost ready!</i> ✨`;
+🌿 *Your personal grimoire is almost ready!* ✨`;
 
         await ctx.editMessageText(message, {
-            parse_mode: 'HTML',
+            parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [
                     [
@@ -349,17 +350,17 @@ Go to your forum and send: <b>${setupState.setupCode}</b>
 
         try {
             if (ctx.chat.type !== 'supergroup' || !ctx.chat.is_forum) {
-                await ctx.reply(`⚠️ **Setup Issue Detected!**
+                await ctx.reply(`⚠️ *Setup Issue Detected!*
 
 This appears to be a ${ctx.chat.type}, but I need a forum group!
 
-🔧 **Please ensure:**
+🔧 *Please ensure:*
 • Group is converted to "Forum" type
 • Group is a supergroup (not basic group)
 • Forum topics are enabled
 
-💬 **Need help?** Use the "Need Help" button to contact support!
-🔄 **Try again:** Send /start to restart setup
+💬 *Need help?* Use the "Need Help" button to contact support!
+🔄 *Try again:* Send /start to restart setup
 
 *Let's get this working perfectly!* 🌿`,
                     { parse_mode: 'Markdown' });
@@ -370,17 +371,17 @@ This appears to be a ${ctx.chat.type}, but I need a forum group!
             console.log(`🔍 Bot status in group: ${botMember.status}`);
 
             if (botMember.status !== 'administrator') {
-                await ctx.reply(`🔑 **Admin Required!**
+                await ctx.reply(`🔑 *Admin Required!*
 
 Current bot status: ${botMember.status}
 
-🔧 **Please ensure:**
+🔧 *Please ensure:*
 • Bot is added as administrator
 • Bot has "Manage Topics" permission
 • Bot has "Delete Messages" permission
 
-💬 **Need help?** Contact support for assistance!
-🔄 **Then send the setup code again!**
+💬 *Need help?* Contact support for assistance!
+🔄 *Then send the setup code again!*
 
 *Almost there!* 🌿`,
                     { parse_mode: 'Markdown' });
@@ -394,12 +395,12 @@ Current bot status: ${botMember.status}
 
         } catch (error) {
             console.error('Error handling setup code:', error);
-            await ctx.reply(`🐛 **Setup Error** 🐛
+            await ctx.reply(`🐛 *Setup Error* 🐛
 
 ${this.escapeHtml(error.message || 'Unknown setup error occurred')}
 
-💬 **Need help?** Contact support if this keeps happening!
-🔄 **Try again:** Send the setup code again
+💬 *Need help?* Contact support if this keeps happening!
+🔄 *Try again:* Send the setup code again
 
 *We'll get this working!* 🌿`, { parse_mode: 'HTML' });
             return true;
@@ -418,19 +419,19 @@ ${this.escapeHtml(error.message || 'Unknown setup error occurred')}
         // info
         bot.action('setup_info', async (ctx) => {
             await ctx.answerCbQuery('ℹ️ About personal forums');
-            await ctx.reply(`ℹ️ **About Personal Recipe Forums** ℹ️
+            await ctx.reply(`ℹ️ *About Personal Recipe Forums* ℹ️
 
-📚 **What is it?**
+📚 *What is it?*
 A private Telegram forum group that organizes your recipes automatically!
 
-🎯 **Benefits:**
+🎯 *Benefits:*
 • 📂 Automatic categorization (Salads, Desserts, etc.)
 • 🎬 Original videos preserved with recipes
 • 🔍 Easy browsing by dish type
 • 📱 Beautiful organized interface
 • 🔐 Completely private (just you!)
 
-🤖 **How it works:**
+🤖 *How it works:*
 1. You send cooking videos to this bot
 2. Bot extracts recipes using AI
 3. Bot posts organized recipes to your forum
@@ -485,17 +486,17 @@ A private Telegram forum group that organizes your recipes automatically!
             const developerUsername = process.env.DEVELOPER_USERNAME || 'YourUsername';
             const developerUserId = process.env.DEVELOPER_USER_ID || 'YOUR_USER_ID';
 
-            await ctx.reply(`💬 **Need Help with Setup?** 💬
+            await ctx.reply(`💬 *Need Help with Setup?* 💬
 
-🆘 **If you're stuck or having issues:**
+🆘 *If you're stuck or having issues:*
 
-👤 **Contact the Developer:**
+👤 *Contact the Developer:*
 [📱 Message @${developerUsername}](tg://user?id=${developerUserId})
 
-🐛 **Having technical issues?**
+🐛 *Having technical issues?*
 Send a screenshot of the error and describe what step you're on.
 
-⚡ **Quick fixes:**
+⚡ *Quick fixes:*
 • Make sure group is "Forum" type (not regular group)
 • Ensure bot has "Manage Topics" permission
 • Try refreshing Telegram app
@@ -517,11 +518,11 @@ Send a screenshot of the error and describe what step you're on.
         bot.action(/copy_setup_code_(.+)/, async (ctx) => {
             const setupCode = ctx.match[1];
             await ctx.answerCbQuery('📋 Code ready to copy!');
-            await ctx.reply(`📋 **Setup Code Ready** 📋
+            await ctx.reply(`📋 *Setup Code Ready* 📋
 
 \`${setupCode}\`
 
-📱 **Instructions:**
+📱 *Instructions:*
 1. Go to your forum group
 2. Tap the message box
 3. Paste and send this code
@@ -537,12 +538,12 @@ Send a screenshot of the error and describe what step you're on.
             const userId = ctx.dbUser.id;
             this.pendingSetups.delete(userId);
 
-            await ctx.editMessageText(`❌ **Setup Cancelled** ❌
+            await ctx.editMessageText(`❌ *Setup Cancelled* ❌
 
 No worries! You can start the setup anytime.
 
-🚀 **Ready to try again?** Send /start
-💬 **Need help first?** Contact support
+🚀 *Ready to try again?* Send /start
+💬 *Need help first?* Contact support
 
 🌿 *Your culinary journey awaits!* ✨`,
                 { parse_mode: 'Markdown' });
@@ -551,7 +552,7 @@ No worries! You can start the setup anytime.
 
     async setupPersonalForum(ctx, setupInfo) {
         try {
-            await ctx.reply(`🎉 **Perfect Setup Detected!** 🎉
+            await ctx.reply(`🎉 *Perfect Setup Detected!* 🎉
 
 🔮 Setting up your personal recipe categories...
 📂 Creating organized topics for your collection...
@@ -597,18 +598,18 @@ No worries! You can start the setup anytime.
 
             const categoriesList = createdTopics.map(t => `• ${this.escapeHtml(t.topic_name)}`).join('\n');
 
-            await ctx.reply(`✅ **Your Personal Recipe Forum is Ready!** ✅
+            await ctx.reply(`✅ *Your Personal Recipe Forum is Ready!* ✅
 
-📂 **Created Categories:**
+📂 *Created Categories:*
 ${categoriesList}
 
-🎯 **How to use:**
+🎯 *How to use:*
 1️⃣ Send cooking videos to our private chat (@${ctx.botInfo.username})
 2️⃣ I'll extract recipes and post them here automatically
 3️⃣ Browse organized recipes by category
 4️⃣ Keep your culinary collection forever!
 
-🌿 **Your personal grimoire awaits new recipes!** ✨
+🌿 *Your personal grimoire awaits new recipes!* ✨
 
 *Start by sending me a cooking video in our private chat!*`,
                 { parse_mode: 'HTML' });
@@ -617,12 +618,12 @@ ${categoriesList}
 
         } catch (error) {
             console.error('Error setting up personal forum:', error);
-            await ctx.reply(`🐛 **Setup Error** 🐛
+            await ctx.reply(`🐛 *Setup Error* 🐛
 
 ${this.escapeHtml(error.message || 'Unknown setup error occurred')}
 
-💬 **Need help?** Contact support for assistance!
-🔄 **Try again:** Send the setup code again
+💬 *Need help?* Contact support for assistance!
+🔄 *Try again:* Send the setup code again
 
 *We'll get this working perfectly!* 🌿`, { parse_mode: 'HTML' });
         }

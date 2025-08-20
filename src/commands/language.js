@@ -85,34 +85,55 @@ const updateUserCommandMenu = async (ctx, languageCode, botInstance) => {
             'en': [
                 { command: 'start', description: '🌿 Welcome to GreenGrimoire!' },
                 { command: 'my_recipes', description: '📚 View your recipe collection' },
+                { command: 'forum_status', description: '📱 Check personal forum status' },
+                { command: 'reset_forum', description: '🗑️ Reset forum setup' },
                 { command: 'stats', description: '📊 View your cooking statistics' },
                 { command: 'language', description: '🌍 Change language preferences' },
+                { command: 'setup_help', description: '🆘 Get forum setup help' },
                 { command: 'help', description: '❓ Get help and instructions' },
                 { command: 'ping', description: '🏓 Test bot responsiveness' }
             ],
             'pl': [
                 { command: 'start', description: '🌿 Witaj w GreenGrimoire!' },
                 { command: 'my_recipes', description: '📚 Zobacz kolekcję przepisów' },
+                { command: 'forum_status', description: '📱 Sprawdź status forum' },
+                { command: 'reset_forum', description: '🗑️ Resetuj forum' },
                 { command: 'stats', description: '📊 Zobacz statystyki gotowania' },
                 { command: 'language', description: '🌍 Zmień język' },
+                { command: 'setup_help', description: '🆘 Pomoc konfiguracji' },
                 { command: 'help', description: '❓ Uzyskaj pomoc' },
                 { command: 'ping', description: '🏓 Testuj bota' }
             ],
             'uk': [
                 { command: 'start', description: '🌿 Ласкаво просимо до GreenGrimoire!' },
-                { command: 'help', description: '❓ Отримати допомогу та інструкції' },
                 { command: 'my_recipes', description: '📚 Переглянути колекцію рецептів' },
+                { command: 'forum_status', description: '📱 Перевірити статус форуму' },
+                { command: 'reset_forum', description: '🗑️ Скинути форум' },
                 { command: 'stats', description: '📊 Переглянути статистику рецептів' },
                 { command: 'language', description: '🌍 Змінити мовні налаштування' },
+                { command: 'setup_help', description: '🆘 Допомога налаштування' },
+                { command: 'help', description: '❓ Отримати допомогу та інструкції' },
                 { command: 'ping', description: '🏓 Перевірити відгукування бота' }
             ],
         };
 
         const commands = commandSets[languageCode] || commandSets['en'];
+
         await botInstance.telegram.setMyCommands(commands, {
             scope: { type: 'chat', chat_id: ctx.chat.id }
         });
-        console.log(`📱 Updated command menu for user ${ctx.dbUser.id} (${languageCode})`);
+
+        await botInstance.telegram.setMyCommands(commands);
+
+        // Set menu button
+        await botInstance.telegram.setChatMenuButton({
+            chat_id: ctx.chat.id,
+            menu_button: {
+                type: 'commands'
+            }
+        });
+
+        console.log(`Updated command menu for ${ctx.dbUser.id} (${languageCode})`);
 
     } catch (error) {
         console.error('Error updating user command menu:', error);

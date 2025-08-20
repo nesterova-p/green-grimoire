@@ -94,22 +94,20 @@ const initializeServices = async () => {
 
 const setupBotCommands = async () => {
     try {
-        await bot.telegram.deleteMyCommands();
-
         const commands = [
             { command: 'start', description: '🌿 Welcome to GreenGrimoire!' },
-            { command: 'help', description: '❓ Get help and instructions' },
             { command: 'my_recipes', description: '📚 View your recipe collection' },
             { command: 'forum_status', description: '📱 Check your personal forum status' },
             { command: 'reset_forum', description: '🗑️ Reset forum setup' },
             { command: 'stats', description: '📊 View your cooking statistics' },
             { command: 'language', description: '🌍 Change language preferences' },
             { command: 'setup_help', description: '🆘 Get forum setup assistance' },
+            { command: 'help', description: '❓ Get help and instructions' },
             { command: 'ping', description: '🏓 Test bot responsiveness' }
         ];
 
         await bot.telegram.setMyCommands(commands);
-        console.log('✅ Bot command menu configured successfully!');
+        console.log('✅ Default commands configured!');
 
     } catch (error) {
         console.error('❌ Error setting bot commands:', error);
@@ -121,37 +119,37 @@ const setupLanguageSpecificCommands = async () => {
     try {
         const englishCommands = [
             { command: 'start', description: '🌿 Welcome to GreenGrimoire!' },
-            { command: 'help', description: '❓ Get help and instructions' },
             { command: 'my_recipes', description: '📚 View your recipe collection' },
             { command: 'forum_status', description: '📱 Check personal forum status' },
             { command: 'reset_forum', description: '🗑️ Reset forum setup' },
             { command: 'stats', description: '📊 View your cooking statistics' },
             { command: 'language', description: '🌍 Change language preferences' },
             { command: 'setup_help', description: '🆘 Get forum setup help' },
+            { command: 'help', description: '❓ Get help and instructions' },
             { command: 'ping', description: '🏓 Test bot responsiveness' }
         ];
 
         const polishCommands = [
             { command: 'start', description: '🌿 Witaj w GreenGrimoire!' },
-            { command: 'help', description: '❓ Uzyskaj pomoc i instrukcje' },
             { command: 'my_recipes', description: '📚 Zobacz swoją kolekcję przepisów' },
             { command: 'forum_status', description: '📱 Sprawdź status osobistego forum' },
-            { command: 'reset_forum', description: '🗑️ Usuń forum' },
+            { command: 'reset_forum', description: '🗑️ Resetuj forum' },
             { command: 'stats', description: '📊 Zobacz swoje statystyki gotowania' },
             { command: 'language', description: '🌍 Zmień preferencje językowe' },
             { command: 'setup_help', description: '🆘 Pomoc w konfiguracji forum' },
+            { command: 'help', description: '❓ Uzyskaj pomoc i instrukcje' },
             { command: 'ping', description: '🏓 Testuj responsywność bota' }
         ];
 
         const ukrainianCommands = [
             { command: 'start', description: '🌿 Ласкаво просимо до GreenGrimoire!' },
-            { command: 'help', description: '❓ Отримати допомогу та інструкції' },
             { command: 'my_recipes', description: '📚 Переглянути колекцію рецептів' },
             { command: 'forum_status', description: '📱 Перевірити статус особистого форуму' },
-            { command: 'reset_forum', description: '🗑️ Видалити форум' },
+            { command: 'reset_forum', description: '🗑️ Скинути форум' },
             { command: 'stats', description: '📊 Переглянути статистику рецептів' },
             { command: 'language', description: '🌍 Змінити мовні налаштування' },
             { command: 'setup_help', description: '🆘 Допомога з налаштуванням форуму' },
+            { command: 'help', description: '❓ Отримати допомогу та інструкції' },
             { command: 'ping', description: '🏓 Перевірити відгукування бота' }
         ];
 
