@@ -9,6 +9,30 @@ let isDownloading = false;
 const downloadQueue = [];
 const pendingDownloads = new Map();
 
+// Helper function to escape markdown characters
+const escapeMarkdown = (text) => {
+    if (!text) return '';
+    return text
+        .replace(/\*/g, '\\*')
+        .replace(/_/g, '\\_')
+        .replace(/\[/g, '\\[')
+        .replace(/\]/g, '\\]')
+        .replace(/\(/g, '\(')
+        .replace(/\)/g, '\)')
+        .replace(/~/g, '\\~')
+        .replace(/`/g, '\\`')
+        .replace(/>/g, '\\>')
+        .replace(/#/g, '\\#')
+        .replace(/\+/g, '\\+')
+        .replace(/-/g, '\\-')
+        .replace(/=/g, '\\=')
+        .replace(/\|/g, '\\|')
+        .replace(/\{/g, '\\{')
+        .replace(/\}/g, '\\}')
+        .replace(/\./g, '\.')
+        .replace(/!/g, '\\!');
+};
+
 // buttons
 const createDownloadConfirmationButtons = (videoInfo) => {
     return {
@@ -36,7 +60,7 @@ const sendProgressUpdate = async (ctx, messageId, status, details = '') => {
         'parsing': '🍳✨ Organizing ancient kitchen knowledge into sacred scrolls... ✨🍳'
     };
 
-    const cleanDetails = details ? details.replace(/\*/g, '').replace(/_/g, '') : '';  // clean details text; aviod md issues
+    const cleanDetails = details ? escapeMarkdown(details) : '';
 
     const message = `${progressSteps[status] || status}
 
@@ -58,7 +82,7 @@ ${cleanDetails ? `${cleanDetails}\n` : ''}
         }
     } catch (error) {
         console.error('Progress update error:', error.message);
-        const plainMessage = message.replace(/\*\*/g, '').replace(/\*/g, '');
+        const plainMessage = message.replace(/\*\*/g, '').replace(/\*/g, '').replace(/\\/g, '');
         try {
             if (messageId) {
                 await ctx.telegram.editMessageText(ctx.chat.id, messageId, null, plainMessage);
@@ -89,7 +113,42 @@ const downloadVideoInfo = async (url, ctx) => {
         }
 
         let videoInfo;
-        if (url.includes('tiktok')) {
+
+        if (url.includes('youtube')) {
+            try {
+                const infoOptions = [
+                    '--dump-json',
+                    '--no-download',
+                    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                ];
+
+                videoInfo = await Promise.race([
+                    global.ytDlpInstance.execPromise([url, ...infoOptions]).then(stdout => {
+                        try {
+                            return JSON.parse(stdout);
+                        } catch (e) {
+                            // If JSON parsing fails, create basic info
+                            return {
+                                title: 'YouTube Video',
+                                duration: null,
+                                uploader: 'YouTube User',
+                                webpage_url: url
+                            };
+                        }
+                    }),
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('YouTube info timeout')), 30000))
+                ]);
+            } catch (youtubeError) {
+                console.log('YouTube info extraction failed:', youtubeError.message);
+                videoInfo = {
+                    title: 'YouTube Video (Limited info)',
+                    duration: null,
+                    uploader: 'YouTube User',
+                    webpage_url: url
+                };
+            }
+        } else if (url.includes('tiktok')) {
             try {
                 videoInfo = await Promise.race([
                     global.ytDlpInstance.getVideoInfo(url),
@@ -113,15 +172,18 @@ const downloadVideoInfo = async (url, ctx) => {
         const platformWarning = url.includes('tiktok') ?
             '\n⚠️ *TikTok portals can be tricky - success not guaranteed!* ⚠️' : '';
 
+        const videoTitle = escapeMarkdown(videoInfo.title || 'Unknown culinary wisdom');
+        const videoUploader = escapeMarkdown(videoInfo.uploader || 'Unknown kitchen master');
+
         await ctx.telegram.editMessageText(
             ctx.chat.id,
             progressId,
             null,
             `📜⚡ *Video portal successfully opened!* ⚡📜
 
-🎬 **Mystical Content:** ${videoInfo.title || 'Unknown culinary wisdom'}
+🎬 **Mystical Content:** ${videoTitle}
 ⏱️ **Duration:** ${duration}
-📺 **Sage Creator:** ${videoInfo.uploader || 'Unknown kitchen master'}${platformWarning}
+📺 **Sage Creator:** ${videoUploader}${platformWarning}
 
 🤔💭 *Moss has examined the mystical portal...* 💭🤔
 
@@ -129,7 +191,7 @@ const downloadVideoInfo = async (url, ctx) => {
 
 *The choice is yours, dear cook!* ✨🌿`,
             { parse_mode: 'Markdown',
-                    ...createDownloadConfirmationButtons(videoInfo),
+                ...createDownloadConfirmationButtons(videoInfo),
             }
         );
 
@@ -138,6 +200,8 @@ const downloadVideoInfo = async (url, ctx) => {
 
     } catch (error) {
         console.error('Video info error:', error);
+        const errorMessage = escapeMarkdown(error.message || 'Unknown magical interference detected');
+
         const errorMsg = url.includes('tiktok') && error.message.includes('extract') ?
             `🎵⚡ *TikTok's magical defenses are too strong!* ⚡🎵
 
@@ -159,7 +223,7 @@ const downloadVideoInfo = async (url, ctx) => {
 
 🌿 The video portal resisted the ancient magic... 
 
-*Error whispers:* ${error.message || 'Unknown magical interference detected'}
+*Error details:* ${errorMessage}
 
 🧙‍♀️ *Moss will grow stronger and try different spells next time!* 
 🔮 *Send another video link to attempt a new ritual!* ✨🌱`;
@@ -218,7 +282,6 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
 
         const videoMessageInfo = await sendVideoToUser(ctx, videoPath, videoInfo, progressId);
 
-
         await sendProgressUpdate(ctx, progressId, 'processing',
             '🧠 Now analyzing the video content for recipe extraction...');
 
@@ -264,6 +327,8 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
     } catch (error) {
         console.error('Download error:', error);
 
+        const errorMessage = escapeMarkdown(error.message || 'The video spirits are not cooperating today!');
+
         await ctx.telegram.editMessageText(
             ctx.chat.id,
             progressId,
@@ -272,7 +337,7 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
 
 🌿 *Moss encountered mystical interference...*
 
-*Error whispers:* ${error.message || 'The video spirits are not cooperating today!'}
+*Error details:* ${errorMessage}
 
 🧙‍♀️ *Possible causes:*
 - Video portal defenses are too strong
@@ -353,7 +418,7 @@ const handleDownloadConfirmation = async (ctx, userMessage) => {
             `🌿✨ *Moss nods understandingly* ✨🌿
 
 🧙‍♀️ *No worries, dear cook! The video portal remains open in the ether.*
-📜 *Send another video link anytime you\'re ready for downloading magic!*
+📜 *Send another video link anytime you're ready for downloading magic!*
 
 *Moss returns to tending the grimoire...* 🍄📚`,
             { parse_mode: 'Markdown' }
@@ -395,7 +460,7 @@ const sendVideoToUser = async (ctx, videoPath, videoInfo, progressId) => {
 🎬 **Video Size:** ${fileSizeMB.toFixed(1)}MB
 ⚠️ **Telegram Limit:** 50MB max for bots
 
-📱 **Original video at:** ${videoInfo.original_video_url || 'source platform'}
+📱 **Original video at:** ${videoInfo.original_video_url || videoInfo.webpage_url || 'source platform'}
 🔍 **Recipe extraction continues below...**
 
 *Moss will still extract the cooking wisdom for you!* ✨`,
@@ -403,11 +468,15 @@ const sendVideoToUser = async (ctx, videoPath, videoInfo, progressId) => {
             return { success: false };
         }
 
+        const videoTitle = escapeMarkdown(videoInfo.title || 'Cooking Video');
+        const duration = videoInfo.duration ? `${Math.floor(videoInfo.duration / 60)}m ${Math.floor(videoInfo.duration % 60)}s` : 'Unknown';
+        const platform = escapeMarkdown(videoInfo.video_platform || 'Unknown');
+
         const caption = `🎬 **Original Cooking Video** 🎬
 
-📝 **Title:** ${videoInfo.title || 'Cooking Video'}
-⏱️ **Duration:** ${videoInfo.duration ? `${Math.floor(videoInfo.duration / 60)}m ${Math.floor(videoInfo.duration % 60)}s` : 'Unknown'}
-📱 **Platform:** ${videoInfo.video_platform || 'Unknown'}
+📝 **Title:** ${videoTitle}
+⏱️ **Duration:** ${duration}
+📱 **Platform:** ${platform}
 
 🔍 *Recipe extraction in progress... Stand by!* ⚡`;
 
@@ -454,9 +523,10 @@ const sendVideoToUser = async (ctx, videoPath, videoInfo, progressId) => {
 *The cooking wisdom will still be captured!* ✨`,
                 { parse_mode: 'Markdown' });
         } else {
+            const errorMessage = escapeMarkdown(error.message || 'Unknown upload interference');
             await ctx.reply(`🐛 **Video Upload Error** 🐛
 
-${error.message || 'Unknown upload interference'}
+${errorMessage}
 📱 Video may be accessible at source platform
 🔍 **Recipe extraction continues below...**
 
@@ -482,7 +552,7 @@ module.exports = {
         } finally {
             isDownloading = false;
             if (downloadQueue.length > 0) {
-                setTimeout(processDownloadQueue, 1000);
+                setTimeout(() => module.exports.processDownloadQueue(), 1000);
             }
         }
     },

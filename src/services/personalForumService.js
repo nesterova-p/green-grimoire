@@ -557,7 +557,7 @@ No worries! You can start the setup anytime.
 🔮 Setting up your personal recipe categories...
 📂 Creating organized topics for your collection...
 
-*Ancient magic in progress...* ⚡`, { parse_mode: 'HTML' });
+*Ancient magic in progress...* ⚡`, { parse_mode: 'Markdown' });
 
             const categories = await this.getDefaultCategories();
             const createdTopics = [];
@@ -604,15 +604,15 @@ No worries! You can start the setup anytime.
 ${categoriesList}
 
 🎯 *How to use:*
-1️⃣ Send cooking videos to our private chat (@${ctx.botInfo.username})
+1️⃣ Send cooking videos to our *General* topic
 2️⃣ I'll extract recipes and post them here automatically
 3️⃣ Browse organized recipes by category
 4️⃣ Keep your culinary collection forever!
 
 🌿 *Your personal grimoire awaits new recipes!* ✨
 
-*Start by sending me a cooking video in our private chat!*`,
-                { parse_mode: 'HTML' });
+*Start by sending me a cooking video in our chat!*`,
+                { parse_mode: 'Markdown' });
 
             console.log(`🎉 Personal forum setup completed for user ${ctx.dbUser.id}`);
 
@@ -789,17 +789,33 @@ ${this.escapeHtml(error.message || 'Unknown setup error occurred')}
     formatRecipeMessage(recipe) {
         const timestamp = new Date(recipe.created_at).toLocaleDateString();
         const title = this.escapeHtml(recipe.title);
-        const recipeText = this.escapeHtml(recipe.structured_recipe);
         const platform = this.escapeHtml(recipe.video_platform || 'Unknown');
+
+        // Convert Markdown to HTML formatting instead of escaping
+        const recipeTextHtml = this.convertMarkdownToHtml(recipe.structured_recipe);
 
         return `🍳 <b>${title}</b> 🍳
 
-${recipeText}
+${recipeTextHtml}
 
 📅 <b>Added:</b> ${timestamp}
 📱 <b>Source:</b> ${platform}
 
 🌿 <i>From your personal GreenGrimoire collection</i> ✨`;
+    }
+
+    convertMarkdownToHtml(markdownText) {
+        if (!markdownText) return '';
+        let htmlText = markdownText
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        htmlText = htmlText.replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+        htmlText = htmlText.replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<i>$1</i>');
+
+        return htmlText;
     }
 
     getRecipeKeyboard(recipeId) {
@@ -826,7 +842,7 @@ ${recipeText}
 📚 All your <b>${categoryNameLower}</b> recipes will appear here automatically!
 
 🤖 <b>How it works:</b>
-• Send cooking videos to @${ctx.botInfo.username} in private chat
+• Send cooking videos to <b>General</b> topic
 • Recipes get extracted and organized here
 • Browse, rate, and scale your collection!
 

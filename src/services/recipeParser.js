@@ -287,7 +287,7 @@ const saveRecipeToDatabase = async (recipeData, userId, ctx, recipeContent, vide
                                     `https://t.me/c/${Math.abs(userForum.forum_chat_id).toString().slice(4)}/${forumTopicId || '1'}` :
                                     'your personal forum';
 
-                                await ctx.reply(`✅ **Recipe Also Posted to Your Personal Forum!** ✅
+                               /* await ctx.reply(`✅ **Recipe Also Posted to Your Personal Forum!** ✅
 
 📂 **Category Topic:** ${category.icon} ${category.name_en}
 👥 **Your Forum:** [View in ${category.name_en}](${forumLink})
@@ -295,7 +295,7 @@ const saveRecipeToDatabase = async (recipeData, userId, ctx, recipeContent, vide
 🌿 *Your recipe is now beautifully organized and easy to find!* ✨
 
 📱 *Browse all your recipes by category in your personal forum!*`,
-                                    { parse_mode: 'Markdown' });
+                                    { parse_mode: 'Markdown' });*/
                             } catch (notificationError) {
                                 console.log('Could not send forum notification:', notificationError.message);
                             }
