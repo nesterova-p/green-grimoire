@@ -18,6 +18,18 @@ const smartExtractTextFromVideo = async (videoPath, ctx, videoInfo, contentAnaly
             return null;
         }
 
+        const canExtract = await canExtractFrames(videoPath);
+        if (!canExtract) {
+            if (!silent) {
+                ctx.reply(`❌ **Video Frame Extraction Not Possible** ❌
+
+🎬 Video file has encoding issues that prevent frame extraction
+🗣️ Using audio transcription and description instead
+🌿 *This is normal for some YouTube videos!* ✨`);
+            }
+            return null;
+        }
+
         if (!silent) {
             ctx.reply(`👁️ **Visual Text Extraction** 👁️
 
@@ -257,7 +269,70 @@ const extractSingleFrame = async (videoPath, timePoint, outputPath) => {
                 'eq=contrast=1.2:brightness=0.1'
             ].join(','),
             '-y',
+            '-hide_banner', // Reduce noise
+            '-loglevel', 'error', // Only show errors
+            '-avoid_negative_ts', 'make_zero', // Handle timing issues
+            '-fps_mode', 'vfr', // Variable frame rate handling
             outputPath
+        ]);
+
+        let completed = false;
+        let errorOutput = '';
+
+        ffmpeg.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+        });
+
+        ffmpeg.on('close', (code) => {
+            if (!completed) {
+                completed = true;
+                if (fs.existsSync(outputPath)) {
+                    try {
+                        const stats = fs.statSync(outputPath);
+                        if (stats.size > 1000) {
+                            resolve(outputPath);
+                            return;
+                        }
+                    } catch (e) {
+                        // fall through to rejection
+                    }
+                }
+
+                console.log(`FFmpeg extraction failed at ${timePoint}s - Code: ${code}, Error: ${errorOutput.slice(-200)}`);
+                reject(new Error(`FFmpeg failed with code ${code} at time ${timePoint}s`));
+            }
+        });
+
+        ffmpeg.on('error', (error) => {
+            if (!completed) {
+                completed = true;
+                console.log(`FFmpeg spawn error at ${timePoint}s:`, error.message);
+                reject(error);
+            }
+        });
+
+        setTimeout(() => {
+            if (!completed) {
+                completed = true;
+                ffmpeg.kill('SIGKILL');
+                reject(new Error(`Frame extraction timeout at ${timePoint}s`));
+            }
+        }, 8000);
+    });
+};
+
+const canExtractFrames = async (videoPath) => {
+    return new Promise((resolve) => {
+        const testOutputPath = `${videoPath}_test_frame.jpg`;
+
+        const ffmpeg = spawn('ffmpeg', [
+            '-i', videoPath,
+            '-vframes', '1',
+            '-f', 'image2',
+            '-y',
+            '-hide_banner',
+            '-loglevel', 'error',
+            testOutputPath
         ]);
 
         let completed = false;
@@ -265,29 +340,34 @@ const extractSingleFrame = async (videoPath, timePoint, outputPath) => {
         ffmpeg.on('close', (code) => {
             if (!completed) {
                 completed = true;
-                if (code === 0 && fs.existsSync(outputPath)) {
-                    resolve(outputPath);
-                } else {
-                    reject(new Error(`FFmpeg failed with code ${code}`));
-                }
+                const canExtract = code === 0 && fs.existsSync(testOutputPath);
+
+                // Clean up test file
+                try {
+                    if (fs.existsSync(testOutputPath)) {
+                        fs.unlinkSync(testOutputPath);
+                    }
+                } catch (e) {}
+
+                console.log(`🔍 Frame extraction test: ${canExtract ? 'POSSIBLE' : 'FAILED'} (code: ${code})`);
+                resolve(canExtract);
             }
         });
 
-        ffmpeg.on('error', (error) => {
+        ffmpeg.on('error', () => {
             if (!completed) {
                 completed = true;
-                reject(error);
+                resolve(false);
             }
         });
 
-        // timeout
         setTimeout(() => {
             if (!completed) {
                 completed = true;
                 ffmpeg.kill('SIGKILL');
-                reject(new Error('Frame extraction timeout'));
+                resolve(false);
             }
-        }, 12000);
+        }, 5000);
     });
 };
 

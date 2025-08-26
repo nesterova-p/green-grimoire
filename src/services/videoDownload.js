@@ -4,10 +4,11 @@ const { getPlatformSpecificOptions } = require('./platformDetection');
 const { transcribeAudio } = require('./speechToText');
 const { parseRecipe } = require('./recipeParser');
 const { smartExtractTextFromVideo } = require('./smartTextExtraction');
-
+const { getPlatformSpecificOptionsWithFallback } = require('./platformDetection');
 let isDownloading = false;
 const downloadQueue = [];
 const pendingDownloads = new Map();
+const { spawn } = require('child_process');
 
 // Helper function to escape markdown characters
 const escapeMarkdown = (text) => {
@@ -238,24 +239,84 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
         const timestamp = Date.now();
         const safeTitle = videoInfo.title?.replace(/[^a-z0-9]/gi, '_').substring(0, 30) || 'video';
         const outputTemplate = `./temp/${safeTitle}_${timestamp}.%(ext)s`;
+        const { getPlatformSpecificOptionsWithFallback } = require('./platformDetection');
 
-        // download
-        await sendProgressUpdate(ctx, progressId, 'downloading',
-            '📁 Capturing mystical video essence and binding audio spirits...');
+        let downloadSuccess = false;
+        let downloadError = null;
+        let attemptNumber = 1;
+        const maxAttempts = 4;
 
-        const downloadOptions = [
-            ...getPlatformSpecificOptions(url),
-            '--output', outputTemplate,
-            '--no-playlist',
-            '--extract-audio',
-            '--audio-format', 'mp3',
-            '--audio-quality', '192K',
-            '--keep-video'
-        ];
+        while (!downloadSuccess && attemptNumber <= maxAttempts) {
+            try {
+                await sendProgressUpdate(ctx, progressId, 'downloading',
+                    `📁 Capturing mystical video essence... (Attempt ${attemptNumber}/${maxAttempts})`);
 
-        await global.ytDlpInstance.execPromise([url, ...downloadOptions]);
+                const downloadOptions = [
+                    ...getPlatformSpecificOptionsWithFallback(url, attemptNumber),
+                    '--output', outputTemplate,
+                    '--no-playlist',
+                    '--extract-audio',
+                    '--audio-format', 'mp3',
+                    '--audio-quality', '192K',
+                    '--keep-video'
+                ];
 
-        // find files
+                console.log(`🔄 Download attempt ${attemptNumber} with options:`, downloadOptions.slice(0, 5));
+
+                await global.ytDlpInstance.execPromise([url, ...downloadOptions]);
+
+                const files = await fs.readdir('./temp');
+                const videoFile = files.find(file =>
+                    file.includes(safeTitle) && file.includes(timestamp.toString()) &&
+                    (file.endsWith('.mp4') || file.endsWith('.webm') || file.endsWith('.mkv'))
+                );
+
+                if (videoFile) {
+                    const videoPath = `./temp/${videoFile}`;
+                    const isValid = await validateVideoFile(videoPath);
+
+                    if (isValid) {
+                        downloadSuccess = true;
+                        console.log(`✅ Download successful and validated on attempt ${attemptNumber}`);
+                    } else {
+                        console.log(`❌ Downloaded file is corrupted on attempt ${attemptNumber}`);
+                        try {
+                            await fs.remove(videoPath);
+                        } catch (e) {}
+                        if (attemptNumber < maxAttempts) {
+                            await sendProgressUpdate(ctx, progressId, 'downloading',
+                                `🔄 File corrupted, trying different approach... (${attemptNumber + 1}/${maxAttempts})`);
+                            attemptNumber++;
+                            continue;
+                        } else {
+                            throw new Error('All download attempts resulted in corrupted video files');
+                        }
+                    }
+                } else {
+                    throw new Error('No video file found after download');
+                }
+
+            } catch (error) {
+                downloadError = error;
+                console.log(`❌ Download attempt ${attemptNumber} failed:`, error.message);
+
+                if (error.message.includes('Requested format is not available') ||
+                    error.message.includes('corrupted video files')) {
+                    if (attemptNumber < maxAttempts) {
+                        console.log(`🔄 Trying different download strategy...`);
+                        await sendProgressUpdate(ctx, progressId, 'downloading',
+                            `🔄 Issue detected, trying alternative method... (${attemptNumber + 1}/${maxAttempts})`);
+                        attemptNumber++;
+                        continue;
+                    } else {
+                        throw new Error(`All download attempts failed. This YouTube video may be protected or have encoding issues.`);
+                    }
+                } else {
+                    // For other errors, don't retry
+                    throw error;
+                }
+            }
+        }
         const files = await fs.readdir('./temp');
         const videoFile = files.find(file =>
             file.includes(safeTitle) && file.includes(timestamp.toString()) &&
@@ -266,11 +327,6 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
             file.endsWith('.mp3')
         );
 
-        if (!videoFile) {
-            throw new Error('Download completed but no video file found');
-        }
-
-        // set up path
         const videoPath = `./temp/${videoFile}`;
         let audioPath = null;
         if (audioFile) {
@@ -278,7 +334,7 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
         }
 
         await sendProgressUpdate(ctx, progressId, 'uploading',
-            '🎬 Delivering your original video first...');
+            '🎬 Delivering your validated video...');
 
         const videoMessageInfo = await sendVideoToUser(ctx, videoPath, videoInfo, progressId);
 
@@ -294,7 +350,6 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
             videoMessageInfo
         );
 
-        // success
         await ctx.telegram.editMessageText(
             ctx.chat.id,
             progressId,
@@ -311,7 +366,6 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
             { parse_mode: 'Markdown' }
         );
 
-        //  cleanup
         setTimeout(async () => {
             try {
                 await fs.remove(videoPath);
@@ -329,27 +383,116 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
 
         const errorMessage = escapeMarkdown(error.message || 'The video spirits are not cooperating today!');
 
+        let specificErrorHelp = '';
+        if (error.message.includes('corrupted video files') || error.message.includes('protected')) {
+            specificErrorHelp = `
+
+🎥 **Video Quality Issue:**
+- YouTube detected automated access and sent corrupted video
+- This specific video may have enhanced protection
+- YouTube Shorts are particularly prone to this issue
+
+💡 **What to try:**
+- Wait 10-15 minutes and try the exact same link again
+- Try a different YouTube Short or regular YouTube video
+- Some videos work better at different times of day`;
+        } else if (error.message.includes('format') || error.message.includes('Format')) {
+            specificErrorHelp = `
+
+🎥 **YouTube Format Issue:**
+- YouTube frequently changes available video formats
+- This video may have restricted download access
+- YouTube Shorts sometimes have very limited options
+
+💡 **Suggestions:**
+- Try the same link again in a few minutes
+- Regular YouTube videos often work more reliably`;
+        }
+
         await ctx.telegram.editMessageText(
             ctx.chat.id,
             progressId,
             null,
-            `🐛⚡ *The downloading ritual has been disrupted!* ⚡🐛
+            `🐛⚡ *The downloading ritual encountered corruption!* ⚡🐛
 
-🌿 *Moss encountered mystical interference...*
+🌿 *Moss detected video stream corruption...*
 
-*Error details:* ${errorMessage}
+*Error details:* ${errorMessage}${specificErrorHelp}
 
-🧙‍♀️ *Possible causes:*
-- Video portal defenses are too strong
-- The sacred downloading tools need attention
-- Network magical interference
-- File too large for current spells
+🧙‍♀️ *The good news:* This is usually temporary!
+- YouTube's anti-bot measures cause this
+- The same video often works if you try again later
+- Different videos from the same creator usually work
 
-*Moss will study new enchantments and grow stronger!* ✨🌱`,
+*Try again in 10-15 minutes with the same link!* ✨🌱`,
             { parse_mode: 'Markdown' }
         );
         return null;
     }
+};
+
+const validateVideoFile = async (videoPath) => {
+    return new Promise((resolve) => {
+        const ffprobe = spawn('ffprobe', [
+            '-v', 'quiet',
+            '-print_format', 'json',
+            '-show_format',
+            '-show_streams',
+            videoPath
+        ]);
+
+        let output = '';
+        let hasVideoStream = false;
+        let hasValidDuration = false;
+
+        ffprobe.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        ffprobe.on('close', (code) => {
+            if (code !== 0) {
+                console.log('❌ Video validation failed - ffprobe error');
+                resolve(false);
+                return;
+            }
+
+            try {
+                const info = JSON.parse(output);
+                const videoStreams = info.streams?.filter(stream => stream.codec_type === 'video') || [];
+                hasVideoStream = videoStreams.length > 0;
+                const duration = parseFloat(info.format?.duration || '0');
+                hasValidDuration = duration > 0;
+                let hasValidVideo = false;
+                if (hasVideoStream) {
+                    const videoStream = videoStreams[0];
+                    const width = parseInt(videoStream.width) || 0;
+                    const height = parseInt(videoStream.height) || 0;
+                    hasValidVideo = width > 50 && height > 50;
+                }
+
+                const isValid = hasVideoStream && hasValidDuration && hasValidVideo;
+
+                console.log(`🔍 Video validation: streams=${hasVideoStream}, duration=${hasValidDuration}, valid=${hasValidVideo} → ${isValid ? 'VALID' : 'CORRUPTED'}`);
+
+                resolve(isValid);
+
+            } catch (error) {
+                console.log('❌ Video validation failed - JSON parsing error:', error.message);
+                resolve(false);
+            }
+        });
+
+        ffprobe.on('error', () => {
+            console.log('❌ Video validation failed - ffprobe spawn error');
+            resolve(false);
+        });
+
+        setTimeout(() => {
+            ffprobe.kill('SIGKILL');
+            console.log('❌ Video validation timed out');
+            resolve(false);
+        }, 10000);
+    });
 };
 
 const intelligentContentExtraction = async (videoPath, audioPath, ctx, videoInfo, progressId, videoMessageInfo = null) => {

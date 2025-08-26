@@ -38,17 +38,58 @@ const getPlatformSpecificOptions = (url) => {
             '--max-filesize', '100M'
         ];
     } else if (url.includes('youtube')) {
-        // Better YouTube Shorts handling
         return [
-            '--format', 'best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best',
+            '--format', 'best[height<=720]/best[ext=mp4]/best[ext=webm]/best',
             '--max-filesize', '100M',
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            '--no-check-formats',
+            '--prefer-free-formats'
         ];
     } else {
         return [
             '--format', 'best[height<=720]/bestvideo[height<=720]+bestaudio/best',
             '--max-filesize', '100M'
         ];
+    }
+};
+
+const getPlatformSpecificOptionsWithFallback = (url, attemptNumber = 1) => {
+    if (url.includes('youtube')) {
+        switch (attemptNumber) {
+            case 1:
+                return [
+                    '--format', 'best[height<=720]/best[ext=mp4]/best',
+                    '--max-filesize', '100M',
+                    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    '--no-check-formats'
+                ];
+            case 2:
+                return [
+                    '--format', 'best/worst',
+                    '--max-filesize', '100M',
+                    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    '--no-check-formats',
+                    '--prefer-free-formats'
+                ];
+            case 3:
+                return [
+                    '--max-filesize', '100M',
+                    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    '--prefer-free-formats'
+                ];
+            case 4:
+                return [
+                    '--format', 'bestvideo[height<=480]+bestaudio/best[height<=480]',
+                    '--max-filesize', '100M',
+                    '--user-agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15',
+                    '--prefer-free-formats',
+                    '--merge-output-format', 'mp4'
+                ];
+            default:
+                return getPlatformSpecificOptions(url);
+        }
+    } else {
+        return getPlatformSpecificOptions(url);
     }
 };
 
@@ -65,5 +106,6 @@ module.exports = {
     detectedVideoLink,
     getPlatformResponse,
     getPlatformSpecificOptions,
+    getPlatformSpecificOptionsWithFallback,
     detectPlatformFromUrl
 };
