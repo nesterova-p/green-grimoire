@@ -15,11 +15,12 @@ const setupHelpCommand = require('./commands/setupHelp');
 const forumStatusCommand = require('./commands/forumStatus');
 const { languageCommand, setupLanguageHandlers, updateUserCommandMenu } = require('./commands/language');
 const { resetForumCommand, setupResetForumHandlers } = require('./commands/resetForum');
+const { rateCommand, setupRatingHandlers } = require('./commands/rate');
 
 // import handlers
 const textHandler = require('./handlers/textHandler');
 const mediaHandler = require('./handlers/mediaHandler');
-const { setupDownloadHandlers, setupRecipeHandlers } = require('./handlers/buttonHandlers');
+const { setupDownloadHandlers, setupRecipeHandlers, setupRatingButtonHandlers, setupStatsHandlers } = require('./handlers/buttonHandlers');
 
 const PersonalForumService = require('./services/personalForumService');
 
@@ -31,13 +32,45 @@ if(!process.env.BOT_TOKEN){
 }
 
 let personalForumService = null;
+/*
+const forceRefreshUserCommands = async (userId) => {
+    try {
+        console.log(`🔄 Force refreshing commands for user ${userId}`);
 
+        const commands = [
+            { command: 'start', description: '🌿 Welcome to GreenGrimoire!' },
+            { command: 'my_recipes', description: '📚 View your recipe collection' },
+            { command: 'forum_status', description: '📱 Check your personal forum status' },
+            { command: 'reset_forum', description: '🗑️ Reset forum setup' },
+            { command: 'stats', description: '📊 View your cooking statistics' },
+            { command: 'rate', description: '⭐ Rate your recipes and track favorites' },
+            { command: 'language', description: '🌍 Change language preferences' },
+            { command: 'setup_help', description: '🆘 Get forum setup assistance' },
+            { command: 'help', description: '❓ Get help and instructions' },
+            { command: 'ping', description: '🏓 Test bot responsiveness' }
+        ];
+
+        await bot.telegram.setMyCommands(commands, {
+            scope: { type: 'chat', chat_id: userId }
+        });
+
+        console.log(`✅ Commands force-refreshed for user ${userId}`);
+    } catch (error) {
+        console.error('Error force refreshing commands:', error);
+    }
+};
+*/
 // middleware
 bot.use(async (ctx, next) => {
     try {
         if (!ctx.from) return next();
         const user = await findOrCreateUser(ctx);
         ctx.dbUser = user;
+        /*
+        if (ctx.from.id === 258692780) {
+            await forceRefreshUserCommands(ctx.from.id);
+        }*/
+
         const username = ctx.from.username || ctx.from.first_name;
         const messageText = ctx.message?.text || ctx.callbackQuery?.data || 'non-text message';
         console.log(`👤 ${username} (DB ID: ${user.id}) sent: "${messageText}"`);
@@ -61,12 +94,16 @@ bot.command('language', languageCommand);
 bot.command('setup_help', setupHelpCommand);
 bot.command('forum_status', forumStatusCommand);
 bot.command('reset_forum', resetForumCommand);
+bot.command('rate', rateCommand);
 
 // buttons handlers
 setupDownloadHandlers(bot);
 setupLanguageHandlers(bot);
 setupRecipeHandlers(bot);
 setupResetForumHandlers(bot);
+setupRatingHandlers(bot);
+setupRatingButtonHandlers(bot);
+setupStatsHandlers(bot);
 
 // handlers
 bot.on('text', textHandler);
@@ -100,6 +137,7 @@ const setupBotCommands = async () => {
             { command: 'forum_status', description: '📱 Check your personal forum status' },
             { command: 'reset_forum', description: '🗑️ Reset forum setup' },
             { command: 'stats', description: '📊 View your cooking statistics' },
+            { command: 'rate', description: '⭐ Rate your recipes and track favorites' },
             { command: 'language', description: '🌍 Change language preferences' },
             { command: 'setup_help', description: '🆘 Get forum setup assistance' },
             { command: 'help', description: '❓ Get help and instructions' },
@@ -123,6 +161,7 @@ const setupLanguageSpecificCommands = async () => {
             { command: 'forum_status', description: '📱 Check personal forum status' },
             { command: 'reset_forum', description: '🗑️ Reset forum setup' },
             { command: 'stats', description: '📊 View your cooking statistics' },
+            { command: 'rate', description: '⭐ Rate your recipes and track favorites' },
             { command: 'language', description: '🌍 Change language preferences' },
             { command: 'setup_help', description: '🆘 Get forum setup help' },
             { command: 'help', description: '❓ Get help and instructions' },
@@ -135,6 +174,7 @@ const setupLanguageSpecificCommands = async () => {
             { command: 'forum_status', description: '📱 Sprawdź status osobistego forum' },
             { command: 'reset_forum', description: '🗑️ Resetuj forum' },
             { command: 'stats', description: '📊 Zobacz swoje statystyki gotowania' },
+            { command: 'rate', description: '⭐ Oceń przepisy i śledź ulubione' },
             { command: 'language', description: '🌍 Zmień preferencje językowe' },
             { command: 'setup_help', description: '🆘 Pomoc w konfiguracji forum' },
             { command: 'help', description: '❓ Uzyskaj pomoc i instrukcje' },
@@ -147,6 +187,7 @@ const setupLanguageSpecificCommands = async () => {
             { command: 'forum_status', description: '📱 Перевірити статус особистого форуму' },
             { command: 'reset_forum', description: '🗑️ Скинути форум' },
             { command: 'stats', description: '📊 Переглянути статистику рецептів' },
+            { command: 'rate', description: '⭐ Оцінити рецепти та відстежувати улюблені' },
             { command: 'language', description: '🌍 Змінити мовні налаштування' },
             { command: 'setup_help', description: '🆘 Допомога з налаштуванням форуму' },
             { command: 'help', description: '❓ Отримати допомогу та інструкції' },

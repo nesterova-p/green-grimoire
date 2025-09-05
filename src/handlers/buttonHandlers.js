@@ -1,4 +1,21 @@
 const { pendingDownloads } = require('../services/videoDownload');
+const { rateRecipe, getRecipeRating, deleteRecipeRating } = require('../database/ratingService');
+const { getRecipeById } = require('../database/recipeService');
+
+const safeEditMessage = async (ctx, text, options = {}) => {
+    try {
+        await ctx.editMessageText(text, options);
+    } catch (error) {
+        if (error.message.includes('message is not modified')) {
+            console.log('Message already shows expected content - skipping edit');
+            return;
+        } else if (error.message.includes('message to edit not found')) {
+            await ctx.reply(text, options);
+        } else {
+            throw error;
+        }
+    }
+};
 
 const setupDownloadHandlers = (bot) => {
     bot.action('download_confirm', async (ctx) => {
@@ -9,7 +26,7 @@ const setupDownloadHandlers = (bot) => {
             const pending = pendingDownloads.get(userId);
 
             if (!pending) {
-                await ctx.editMessageText(
+                await safeEditMessage(ctx,
                     '⚠️ *Download session expired!* Please send the video link again.',
                     { parse_mode: 'Markdown' }
                 );
@@ -18,7 +35,7 @@ const setupDownloadHandlers = (bot) => {
 
             pendingDownloads.delete(userId);
 
-            await ctx.editMessageText(
+            await safeEditMessage(ctx,
                 `🔮⚡ *Moss prepares the downloading ritual!* ⚡🔮
 
 🧙‍♀️ *Your wish is my command, dear cook!*
@@ -44,7 +61,7 @@ const setupDownloadHandlers = (bot) => {
             const userId = ctx.from.id;
             pendingDownloads.delete(userId);
 
-            await ctx.editMessageText(
+            await safeEditMessage(ctx,
                 `🌿✨ *Moss nods understandingly* ✨🌿
 
 🧙‍♀️ *No worries, dear cook! The video portal remains open in the ether.*
@@ -67,7 +84,7 @@ const setupDownloadHandlers = (bot) => {
             const pending = pendingDownloads.get(userId);
             pendingDownloads.delete(userId);
 
-            await ctx.editMessageText(
+            await safeEditMessage(ctx,
                 `📋⚡ *Video Information Preserved* ⚡📋
 
 🎬 **Title:** ${pending?.videoInfo?.title || 'Unknown'}
@@ -85,14 +102,12 @@ const setupDownloadHandlers = (bot) => {
     });
 };
 
-// view recipe
 const setupRecipeHandlers = (bot) => {
     bot.action(/view_recipe_(\d+)/, async (ctx) => {
         try {
             const recipeId = ctx.match[1];
             await ctx.answerCbQuery('📖 Loading recipe...');
 
-            const { getRecipeById } = require('../database/recipeService');
             const recipe = await getRecipeById(recipeId, ctx.dbUser.id);
 
             if (!recipe) {
@@ -100,25 +115,33 @@ const setupRecipeHandlers = (bot) => {
                 return;
             }
 
-        if (recipe.video_file_id && recipe.video_chat_id) {
-            try {
-                await ctx.replyWithVideo(recipe.video_file_id, {
-                    caption: `🎬 **Original Video** 🎬\n📝 **Recipe:** ${recipe.title}\n🌿 *Refreshing your memory with the source video!* ✨`,
-                    parse_mode: 'Markdown'
-                });
-            } catch (videoError) {
-                console.log('Could not resend video (might be expired):', videoError.message);
-                if (recipe.original_video_url) {
-                    await ctx.reply(`🔗 **Original Video:** ${recipe.original_video_url}`);
+            if (recipe.video_file_id && recipe.video_chat_id) {
+                try {
+                    await ctx.replyWithVideo(recipe.video_file_id, {
+                        caption: `🎬 **Original Video** 🎬\n📝 **Recipe:** ${recipe.title}\n🌿 *Refreshing your memory with the source video!* ✨`,
+                        parse_mode: 'Markdown'
+                    });
+                } catch (videoError) {
+                    console.log('Could not resend video (might be expired):', videoError.message);
+                    if (recipe.original_video_url) {
+                        await ctx.reply(`🔗 **Original Video:** ${recipe.original_video_url}`);
+                    }
                 }
             }
-        }
 
-            const message = `📖 **${recipe.title}** 📖
+            let message = `📖 **${recipe.title}** 📖
 
-${recipe.structured_recipe}
+${recipe.structured_recipe}`;
 
-📅 **Saved:** ${new Date(recipe.created_at).toLocaleDateString()}
+            if (recipe.user_rating) {
+                const stars = '⭐'.repeat(recipe.user_rating);
+                message += `\n\n⭐ **Your Rating:** ${stars} (${recipe.user_rating}/5)`;
+                if (recipe.rating_notes) {
+                    message += `\n💭 **Notes:** "${recipe.rating_notes}"`;
+                }
+            }
+
+            message += `\n\n📅 **Saved:** ${new Date(recipe.created_at).toLocaleDateString()}
 📱 **Platform:** ${recipe.video_platform}
 
 🌿 *From your digital grimoire* ✨`;
@@ -131,13 +154,11 @@ ${recipe.structured_recipe}
         }
     });
 
-    // delete recipe
     bot.action(/delete_recipe_(\d+)/, async (ctx) => {
         try {
             const recipeId = ctx.match[1];
             await ctx.answerCbQuery('🗑️ Confirm deletion...');
 
-            // Show confirmation buttons
             await ctx.reply(
                 `🗑️ **Confirm Recipe Deletion** 🗑️
 
@@ -164,7 +185,6 @@ ${recipe.structured_recipe}
         }
     });
 
-    // confirm delete
     bot.action(/confirm_delete_(\d+)/, async (ctx) => {
         try {
             const recipeId = ctx.match[1];
@@ -174,7 +194,7 @@ ${recipe.structured_recipe}
             const deleted = await deleteRecipe(recipeId, ctx.dbUser.id);
 
             if (deleted) {
-                await ctx.editMessageText(
+                await safeEditMessage(ctx,
                     `✅ **Recipe Deleted Successfully** ✅
 
 🗑️ The recipe has been removed from your grimoire
@@ -184,7 +204,7 @@ ${recipe.structured_recipe}
                     { parse_mode: 'Markdown' }
                 );
             } else {
-                await ctx.editMessageText(
+                await safeEditMessage(ctx,
                     '❌ **Deletion Failed** ❌\n\nRecipe not found or not accessible.',
                     { parse_mode: 'Markdown' }
                 );
@@ -196,11 +216,10 @@ ${recipe.structured_recipe}
         }
     });
 
-    // cancel delete
     bot.action('cancel_delete', async (ctx) => {
         try {
             await ctx.answerCbQuery('❌ Deletion cancelled');
-            await ctx.editMessageText(
+            await safeEditMessage(ctx,
                 `🌿 **Recipe Preserved** 🌿
 
 📚 Your recipe remains safely in the grimoire
@@ -212,7 +231,6 @@ ${recipe.structured_recipe}
         }
     });
 
-    // search and stats
     bot.action('search_recipes', async (ctx) => {
         await ctx.answerCbQuery('🔍 Search feature coming soon!');
         await ctx.reply('🔍 **Recipe Search** 🔍\n\n🚧 This feature is being developed!\n\n*Coming in Phase 1.3!* 🌿');
@@ -241,7 +259,255 @@ ${recipe.structured_recipe}
     });
 };
 
+const setupRatingButtonHandlers = (bot) => {
+    bot.action(/rate_recipe_(\d+)/, async (ctx) => {
+        try {
+            const recipeId = ctx.match[1];
+            await ctx.answerCbQuery('⭐ Opening rating interface...');
+
+            const recipe = await getRecipeById(recipeId, ctx.dbUser.id);
+            if (!recipe) {
+                await ctx.reply('❌ Recipe not found or not accessible!');
+                return;
+            }
+
+            const existingRating = await getRecipeRating(recipeId, ctx.dbUser.id);
+
+            const ratingText = existingRating ?
+                `🔄 **Update Rating** 🔄\n\n📝 **Recipe:** ${recipe.title}\n⭐ **Current Rating:** ${existingRating.rating}/5 stars\n${existingRating.notes ? `💭 **Notes:** "${existingRating.notes}"\n` : ''}\n🌿 *Choose your new rating:*` :
+                `⭐ **Rate This Recipe** ⭐\n\n📝 **Recipe:** ${recipe.title}\n📅 **Created:** ${new Date(recipe.created_at).toLocaleDateString()}\n\n🌿 *How would you rate this recipe?*`;
+
+            await ctx.reply(ratingText, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '⭐⭐⭐⭐⭐ (5)', callback_data: `set_rating_${recipeId}_5` },
+                            { text: '⭐⭐⭐⭐☆ (4)', callback_data: `set_rating_${recipeId}_4` }
+                        ],
+                        [
+                            { text: '⭐⭐⭐☆☆ (3)', callback_data: `set_rating_${recipeId}_3` },
+                            { text: '⭐⭐☆☆☆ (2)', callback_data: `set_rating_${recipeId}_2` }
+                        ],
+                        [
+                            { text: '⭐☆☆☆☆ (1)', callback_data: `set_rating_${recipeId}_1` }
+                        ],
+                        [
+                            { text: '📝 Add Notes', callback_data: `rate_notes_${recipeId}` },
+                            existingRating ? { text: '🗑️ Remove Rating', callback_data: `remove_rating_${recipeId}` } : { text: '❌ Cancel', callback_data: 'cancel_rating' }
+                        ]
+                    ]
+                }
+            });
+
+        } catch (error) {
+            console.error('Rate recipe error:', error);
+            await ctx.reply('🐛 Error opening rating interface!');
+        }
+    });
+
+    bot.action(/set_rating_(\d+)_(\d+)/, async (ctx) => {
+        try {
+            const recipeId = ctx.match[1];
+            const rating = parseInt(ctx.match[2]);
+
+            await ctx.answerCbQuery(`⭐ Rating set to ${rating} stars!`);
+
+            const result = await rateRecipe(recipeId, ctx.dbUser.id, rating);
+
+            if (result.success) {
+                const stars = '⭐'.repeat(rating);
+                const ratingWord = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'][rating];
+
+                await safeEditMessage(ctx, `✅ **Rating Saved!** ✅
+
+📝 **Recipe:** ${result.recipeTitle}
+⭐ **Rating:** ${stars} (${rating}/5) - ${ratingWord}
+
+🌿 *Would you like to add notes about this recipe?*`, {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                { text: '📝 Add Notes', callback_data: `rate_notes_${recipeId}` },
+                                { text: '🔄 Change Rating', callback_data: `rate_recipe_${recipeId}` }
+                            ],
+                            [
+                                { text: '✅ Done', callback_data: 'rating_complete' }
+                            ]
+                        ]
+                    }
+                });
+            }
+
+        } catch (error) {
+            console.error('Set rating error:', error);
+            await ctx.reply('🐛 Error saving rating! Please try again.');
+        }
+    });
+
+    bot.action(/rate_notes_(\d+)/, async (ctx) => {
+        try {
+            const recipeId = ctx.match[1];
+            await ctx.answerCbQuery('📝 Please send your notes...');
+
+            const recipe = await getRecipeById(recipeId, ctx.dbUser.id);
+            if (!recipe) {
+                await ctx.reply('❌ Recipe not found!');
+                return;
+            }
+
+            await ctx.reply(`📝 **Add Rating Notes** 📝
+
+📜 **Recipe:** ${recipe.title}
+
+💭 **Please send your notes about this recipe:**
+• What did you think?
+• Any modifications you made?
+• Tips for next time?
+• How did it turn out?
+
+*Send your message and I'll save it with your rating!*
+
+*Or send /cancel to skip notes.*`, {
+                parse_mode: 'Markdown'
+            });
+
+            global.pendingRatingNotes = global.pendingRatingNotes || new Map();
+            global.pendingRatingNotes.set(ctx.from.id, {
+                recipeId: recipeId,
+                recipeTitle: recipe.title,
+                timestamp: Date.now()
+            });
+
+        } catch (error) {
+            console.error('Rating notes error:', error);
+            await ctx.reply('🐛 Error setting up notes interface!');
+        }
+    });
+
+    bot.action(/remove_rating_(\d+)/, async (ctx) => {
+        try {
+            const recipeId = ctx.match[1];
+            await ctx.answerCbQuery('🗑️ Removing rating...');
+
+            const recipe = await getRecipeById(recipeId, ctx.dbUser.id);
+            if (!recipe) {
+                await ctx.reply('❌ Recipe not found!');
+                return;
+            }
+
+            await safeEditMessage(ctx, `🗑️ **Confirm Rating Removal** 🗑️
+
+📝 **Recipe:** ${recipe.title}
+
+⚠️ Are you sure you want to remove your rating for this recipe?
+
+🌿 *This action cannot be undone.*`, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '✅ Yes, Remove Rating', callback_data: `confirm_remove_rating_${recipeId}` },
+                            { text: '❌ No, Keep Rating', callback_data: `rate_recipe_${recipeId}` }
+                        ]
+                    ]
+                }
+            });
+
+        } catch (error) {
+            console.error('Remove rating error:', error);
+            await ctx.reply('🐛 Error preparing rating removal!');
+        }
+    });
+
+    bot.action(/confirm_remove_rating_(\d+)/, async (ctx) => {
+        try {
+            const recipeId = parseInt(ctx.match[1]);
+            await ctx.answerCbQuery('🗑️ Removing rating...');
+
+            // Force delete using direct SQL
+            const deleteResult = await query(
+                'DELETE FROM recipe_ratings WHERE recipe_id = $1 AND user_id = $2',
+                [recipeId, ctx.dbUser.id]
+            );
+
+            const updateResult = await query(
+                `UPDATE recipes 
+             SET user_rating = NULL, rating_date = NULL, rating_notes = NULL
+             WHERE id = $1 AND user_id = $2`,
+                [recipeId, ctx.dbUser.id]
+            );
+
+            if (deleteResult.rowCount > 0 || updateResult.rowCount > 0) {
+                await safeEditMessage(ctx, `✅ <b>Rating Removed</b> ✅
+
+🗑️ The rating has been removed from your recipe
+📝 You can rate this recipe again anytime with /rate
+
+🌿 <i>Rating successfully cleared!</i> ✨`, {
+                    parse_mode: 'HTML'
+                });
+            } else {
+                await safeEditMessage(ctx, `❌ <b>Rating Removal Failed</b> ❌
+
+No rating found to remove for this recipe.`, {
+                    parse_mode: 'HTML'
+                });
+            }
+
+        } catch (error) {
+            console.error('Confirm remove rating error:', error);
+            await ctx.reply('🐛 Error removing rating! Please try again.');
+        }
+    });
+
+    bot.action('rating_complete', async (ctx) => {
+        await ctx.answerCbQuery('✅ Rating saved!');
+        await safeEditMessage(ctx, `✅ <b>Rating Process Complete</b> ✅
+
+⭐ Your rating has been saved successfully!
+
+📊 Use /rate to view all your ratings
+🏆 Use /my_recipes to see your collection
+
+🌿 <i>Thank you for rating your recipes!</i> ✨`, {
+            parse_mode: 'HTML'
+        });
+    });
+
+    bot.action('cancel_rating', async (ctx) => {
+        await ctx.answerCbQuery('❌ Rating cancelled');
+        await safeEditMessage(ctx, `❌ <b>Rating Cancelled</b> ❌
+
+No rating was saved.
+
+📊 Use /rate anytime to rate your recipes
+🍳 Keep cooking and building your collection!
+
+🌿 <i>Moss returns to the grimoire...</i> ✨`, {
+            parse_mode: 'HTML'
+        });
+    });
+};
+
+const setupStatsHandlers = (bot) => {
+    bot.action('open_rate_command', async (ctx) => {
+        await ctx.answerCbQuery('⭐ Opening rating center...');
+        const { rateCommand } = require('../commands/rate');
+        await rateCommand(ctx);
+    });
+
+    bot.action('open_my_recipes', async (ctx) => {
+        await ctx.answerCbQuery('📚 Opening recipe collection...');
+        const myRecipesCommand = require('../commands/myRecipes');
+        await myRecipesCommand(ctx);
+    });
+};
+
 module.exports = {
     setupDownloadHandlers,
-    setupRecipeHandlers
+    setupRecipeHandlers,
+    setupRatingButtonHandlers,
+    setupStatsHandlers
 };

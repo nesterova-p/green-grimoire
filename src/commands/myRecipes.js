@@ -19,9 +19,7 @@ const myRecipesCommand = async (ctx) => {
 
         recipes.forEach((recipe, index) => {
             const date = new Date(recipe.created_at).toLocaleDateString();
-            const categories = recipe.categories ? recipe.categories.join(', ') : 'Uncategorized';
             message += `${index + 1}. **${recipe.title}**\n`;
-            message += `   📂 ${categories}\n`;
             message += `   📅 ${date}\n\n`;
 
             // Add button for each recipe

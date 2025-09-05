@@ -90,19 +90,70 @@ const getAllUsers = async () => {
 
 const getUserStats = async (userId) => {
     try {
-        const result = await query(
-            `SELECT 
-                COUNT(r.id) as total_recipes,
-                COUNT(DISTINCT r.video_platform) as platforms_used,
-                COUNT(DISTINCT rc.category_id) as categories_used,
-                MIN(r.created_at) as first_recipe_date,
-                MAX(r.created_at) as last_recipe_date
+        const basicStats = await query(
+            `SELECT
+                 COUNT(r.id) as total_recipes,
+                 COUNT(DISTINCT r.video_platform) as platforms_used,
+                 COUNT(DISTINCT rc.category_id) as categories_used,
+                 MIN(r.created_at) as first_recipe_date,
+                 MAX(r.created_at) as last_recipe_date
              FROM recipes r
-             LEFT JOIN recipe_categories rc ON r.id = rc.recipe_id
+                      LEFT JOIN recipe_categories rc ON r.id = rc.recipe_id
              WHERE r.user_id = $1`,
             [userId]
         );
-        return result.rows[0];
+
+        const ratingStats = await query(
+            `SELECT 
+                COUNT(rr.id) as total_rated,
+                AVG(rr.rating) as average_rating,
+                COUNT(CASE WHEN rr.rating = 5 THEN 1 END) as five_stars,
+                COUNT(CASE WHEN rr.rating = 4 THEN 1 END) as four_stars,
+                COUNT(CASE WHEN rr.rating = 3 THEN 1 END) as three_stars,
+                COUNT(CASE WHEN rr.rating = 2 THEN 1 END) as two_stars,
+                COUNT(CASE WHEN rr.rating = 1 THEN 1 END) as one_star
+             FROM recipe_ratings rr
+             JOIN recipes r ON rr.recipe_id = r.id
+             WHERE r.user_id = $1`,
+            [userId]
+        );
+
+        const topRated = await query(
+            `SELECT r.title, rr.rating
+             FROM recipes r
+             JOIN recipe_ratings rr ON r.id = rr.recipe_id
+             WHERE r.user_id = $1
+             ORDER BY rr.rating DESC, rr.created_at DESC
+             LIMIT 1`,
+            [userId]
+        );
+
+        const basic = basicStats.rows[0];
+        const rating = ratingStats.rows[0];
+        const top = topRated.rows[0];
+
+        return {
+            total_recipes: parseInt(basic.total_recipes),
+            platforms_used: parseInt(basic.platforms_used),
+            categories_used: parseInt(basic.categories_used),
+            first_recipe_date: basic.first_recipe_date,
+            last_recipe_date: basic.last_recipe_date,
+            total_rated: parseInt(rating.total_rated),
+            average_rating: rating.average_rating ? parseFloat(rating.average_rating).toFixed(1) : '0.0',
+            rating_distribution: {
+                5: parseInt(rating.five_stars),
+                4: parseInt(rating.four_stars),
+                3: parseInt(rating.three_stars),
+                2: parseInt(rating.two_stars),
+                1: parseInt(rating.one_star)
+            },
+            top_rated_recipe: top ? {
+                title: top.title,
+                rating: top.rating
+            } : null,
+            rating_percentage: basic.total_recipes > 0 ?
+                Math.round((parseInt(rating.total_rated) / parseInt(basic.total_recipes)) * 100) : 0
+        };
     } catch (error) {
         console.error('Error getting user stats:', error.message);
         throw error;

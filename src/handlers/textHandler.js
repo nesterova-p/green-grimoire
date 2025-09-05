@@ -7,6 +7,7 @@ const {
     addToQueue,
     getQueueLength
 } = require('../services/videoDownload');
+const { rateRecipe, getRecipeRating } = require('../database/ratingService');
 
 const escapeHtml = (text) => {
     return text
@@ -15,6 +16,57 @@ const escapeHtml = (text) => {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+};
+
+const handleRatingNotes = async (ctx, userMessage) => {
+    if (!global.pendingRatingNotes) return false;
+    const userId = ctx.from.id;
+    const pendingNote = global.pendingRatingNotes.get(userId);
+    if (!pendingNote) return false;
+
+
+    if (Date.now() - pendingNote.timestamp > 5 * 60 * 1000) {
+        global.pendingRatingNotes.delete(userId);
+        await ctx.reply('⏰ Rating notes session expired. Please use /rate to try again.');
+        return true;
+    }
+
+    if (userMessage.toLowerCase().trim() === '/cancel') {
+        global.pendingRatingNotes.delete(userId);
+        await ctx.reply('❌ Rating notes cancelled.');
+        return true;
+    }
+
+    try {
+        // get existing rating
+        const existingRating = await getRecipeRating(pendingNote.recipeId, ctx.dbUser.id);
+        const rating = existingRating ? existingRating.rating : 3; // Default to 3 if no rating exists
+
+        // save rating with notes
+        const result = await rateRecipe(pendingNote.recipeId, ctx.dbUser.id, rating, userMessage);
+
+        if (result.success) {
+            const stars = '⭐'.repeat(rating);
+            await ctx.reply(`✅ **Rating Notes Saved!** ✅
+
+📝 **Recipe:** ${pendingNote.recipeTitle}
+⭐ **Rating:** ${stars} (${rating}/5)
+💭 **Notes:** "${userMessage}"
+
+🌿 *Your cooking insights have been preserved!* ✨`, {
+                parse_mode: 'Markdown'
+            });
+        }
+
+        global.pendingRatingNotes.delete(userId);
+        return true;
+
+    } catch (error) {
+        console.error('Handle rating notes error:', error);
+        await ctx.reply('🐛 Error saving rating notes! Please try again.');
+        global.pendingRatingNotes.delete(userId);
+        return true;
+    }
 };
 
 const textHandler = async (ctx) => {
@@ -54,6 +106,9 @@ const textHandler = async (ctx) => {
 
         const handledConfirmation = await handleDownloadConfirmation(ctx, userMessage);
         if (handledConfirmation) return;
+
+        const handledRatingNotes = await handleRatingNotes(ctx, userMessage);
+        if (handledRatingNotes) return;
 
         if (detectedVideoLink(userMessage)) {
             const urlMatch = userMessage.match(/(https?:\/\/[^\s]+)/);
