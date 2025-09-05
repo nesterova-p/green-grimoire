@@ -246,10 +246,15 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
         let attemptNumber = 1;
         const maxAttempts = 4;
 
+        // Determine platform for better error messages
+        const platform = url.includes('instagram') ? 'Instagram' :
+            url.includes('tiktok') ? 'TikTok' :
+                url.includes('youtube') ? 'YouTube' : 'Unknown';
+
         while (!downloadSuccess && attemptNumber <= maxAttempts) {
             try {
                 await sendProgressUpdate(ctx, progressId, 'downloading',
-                    `📁 Capturing mystical video essence... (Attempt ${attemptNumber}/${maxAttempts})`);
+                    `📁 Capturing ${platform} video essence... (Attempt ${attemptNumber}/${maxAttempts})`);
 
                 const downloadOptions = [
                     ...getPlatformSpecificOptionsWithFallback(url, attemptNumber),
@@ -298,25 +303,37 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
 
             } catch (error) {
                 downloadError = error;
-                console.log(`❌ Download attempt ${attemptNumber} failed:`, error.message);
+                console.log(`❌ Download attempt ${attemptNumber} failed: 
+Error code: ${error.message}
 
-                if (error.message.includes('Requested format is not available') ||
-                    error.message.includes('corrupted video files')) {
-                    if (attemptNumber < maxAttempts) {
-                        console.log(`🔄 Trying different download strategy...`);
-                        await sendProgressUpdate(ctx, progressId, 'downloading',
-                            `🔄 Issue detected, trying alternative method... (${attemptNumber + 1}/${maxAttempts})`);
-                        attemptNumber++;
-                        continue;
-                    } else {
-                        throw new Error(`All download attempts failed. This YouTube video may be protected or have encoding issues.`);
-                    }
+Stderr:
+${error.stderr || 'No additional error info'}`);
+
+                // Check if this is a format-related error that we can retry
+                const isRetryableError = error.message.includes('Requested format is not available') ||
+                    error.message.includes('No video formats found') ||
+                    error.message.includes('corrupted video files') ||
+                    error.message.includes('format not found') ||
+                    error.message.includes('Unable to extract');
+
+                if (isRetryableError && attemptNumber < maxAttempts) {
+                    console.log(`🔄 Trying different download strategy...`);
+                    await sendProgressUpdate(ctx, progressId, 'downloading',
+                        `🔄 ${platform} format issue detected, trying alternative method... (${attemptNumber + 1}/${maxAttempts})`);
+                    attemptNumber++;
+                    continue;
                 } else {
-                    // For other errors, don't retry
-                    throw error;
+                    // For non-retryable errors or when we've exhausted retries
+                    if (attemptNumber >= maxAttempts) {
+                        throw new Error(createDetailedErrorMessage(url, error, platform, attemptNumber));
+                    } else {
+                        throw error;
+                    }
                 }
             }
         }
+
+        // If we get here, download was successful
         const files = await fs.readdir('./temp');
         const videoFile = files.find(file =>
             file.includes(safeTitle) && file.includes(timestamp.toString()) &&
@@ -366,6 +383,7 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
             { parse_mode: 'Markdown' }
         );
 
+        // Cleanup after 1 hour
         setTimeout(async () => {
             try {
                 await fs.remove(videoPath);
@@ -383,52 +401,125 @@ const downloadActualVideo = async (url, ctx, videoInfo, progressId) => {
 
         const errorMessage = escapeMarkdown(error.message || 'The video spirits are not cooperating today!');
 
-        let specificErrorHelp = '';
-        if (error.message.includes('corrupted video files') || error.message.includes('protected')) {
-            specificErrorHelp = `
+        await ctx.telegram.editMessageText(
+            ctx.chat.id,
+            progressId,
+            null,
+            getPlatformSpecificErrorMessage(url, error, errorMessage),
+            { parse_mode: 'Markdown' }
+        );
+        return null;
+    }
+};
 
-🎥 **Video Quality Issue:**
+const createDetailedErrorMessage = (url, error, platform, attempts) => {
+    const baseError = error.message || 'Unknown error';
+
+    if (url.includes('instagram')) {
+        if (baseError.includes('Requested format is not available')) {
+            return `Instagram Reels download failed after ${attempts} attempts. Instagram frequently changes their video formats and may be blocking automated access. Try again in a few minutes, or the video may be private/restricted.`;
+        } else if (baseError.includes('Private video')) {
+            return `This Instagram Reel is private or restricted. Only public Instagram videos can be downloaded.`;
+        } else if (baseError.includes('Unable to extract')) {
+            return `Instagram is currently blocking video extraction for this Reel. This is common and usually temporary - try again in 10-15 minutes.`;
+        }
+        return `Instagram Reels download failed after ${attempts} attempts. Instagram actively prevents video downloads. Try again later or use a different video.`;
+    } else if (url.includes('tiktok')) {
+        return `TikTok download failed after ${attempts} attempts. TikTok has strong anti-bot measures. Try a different TikTok video or try again later.`;
+    } else if (url.includes('youtube')) {
+        if (baseError.includes('corrupted video files') || baseError.includes('protected')) {
+            return `YouTube detected automated access and sent corrupted video after ${attempts} attempts. Wait 10-15 minutes and try the exact same link again.`;
+        }
+        return `YouTube download failed after ${attempts} attempts. Try again in a few minutes or use a different video.`;
+    }
+
+    return `Video download failed after ${attempts} attempts: ${baseError}`;
+};
+
+const getPlatformSpecificErrorMessage = (url, error, escapedErrorMessage) => {
+    if (url.includes('instagram')) {
+        if (error.message.includes('Requested format is not available') ||
+            error.message.includes('Instagram')) {
+            return `📸⚡ *Instagram Reels Portal Complications!* ⚡📸
+
+🌿 Instagram has strengthened their magical defenses against video capture...
+
+📱 **Instagram-Specific Issues:**
+- Instagram actively blocks video downloading bots
+- Reels formats change frequently 
+- Some videos are private or region-restricted
+- Success varies by video age and privacy settings
+
+💡 **What usually works:**
+- **Wait 10-15 minutes** and try the exact same link again
+- Try a **different Instagram Reel** from the same creator
+- **Public Instagram videos** work better than private ones
+- **Older Reels** sometimes work better than brand new ones
+
+🔄 **Alternative approach:**
+- Try copying a different Instagram Reel link
+- YouTube and TikTok often work more reliably
+- Recipe content is often cross-posted on multiple platforms
+
+*Instagram's anti-magic wards are particularly strong today!* 🛡️✨
+
+🧙‍♀️ *Moss will keep evolving his Instagram portal spells!*`;
+        }
+    } else if (url.includes('tiktok')) {
+        return `🎵⚡ *TikTok's magical defenses are too strong!* ⚡🎵
+
+🌿 This particular TikTok video has powerful anti-magic wards...
+
+🧙‍♀️ *TikTok Portal Complications:*
+- Video might be private or region-locked
+- TikTok actively blocks video extraction spells
+- Some TikTok videos work, others don't
+- Success rate varies by video age and privacy
+
+📱 *Moss suggests:*
+- Try a different TikTok video
+- YouTube and Instagram portals work much better!
+- Public TikTok videos have better success rates
+
+*Moss will keep trying different enchantments!* ✨🌱`;
+    } else if (url.includes('youtube')) {
+        if (error.message.includes('corrupted video files') || error.message.includes('protected')) {
+            return `🎥 **YouTube Format Issue - Common & Fixable!** 🎥
+
+🌿 YouTube detected automated access and sent corrupted video...
+
+🎥 **YouTube Quality Issue:**
 - YouTube detected automated access and sent corrupted video
 - This specific video may have enhanced protection
 - YouTube Shorts are particularly prone to this issue
 
 💡 **What to try:**
-- Wait 10-15 minutes and try the exact same link again
+- **Wait 10-15 minutes** and try the exact same link again
 - Try a different YouTube Short or regular YouTube video
-- Some videos work better at different times of day`;
-        } else if (error.message.includes('format') || error.message.includes('Format')) {
-            specificErrorHelp = `
+- Some videos work better at different times of day
+- The same video often works if you try again later
 
-🎥 **YouTube Format Issue:**
-- YouTube frequently changes available video formats
-- This video may have restricted download access
-- YouTube Shorts sometimes have very limited options
+🔄 **Why this happens:**
+- YouTube's anti-bot measures cause this
+- Different videos from the same creator usually work
+- Regular YouTube videos often work more reliably than Shorts
 
-💡 **Suggestions:**
-- Try the same link again in a few minutes
-- Regular YouTube videos often work more reliably`;
+*Try again in 10-15 minutes with the same link!* ✨🌱`;
         }
+    }
 
-        await ctx.telegram.editMessageText(
-            ctx.chat.id,
-            progressId,
-            null,
-            `🐛⚡ *The downloading ritual encountered corruption!* ⚡🐛
+    return `🐛⚡ *The downloading ritual encountered complications!* ⚡🐛
 
-🌿 *Moss detected video stream corruption...*
+🌿 *Moss detected an issue with the video portal...*
 
-*Error details:* ${errorMessage}${specificErrorHelp}
+*Error details:* ${escapedErrorMessage}
 
 🧙‍♀️ *The good news:* This is usually temporary!
-- YouTube's anti-bot measures cause this
+- Video platforms frequently update their defenses
 - The same video often works if you try again later
 - Different videos from the same creator usually work
 
-*Try again in 10-15 minutes with the same link!* ✨🌱`,
-            { parse_mode: 'Markdown' }
-        );
-        return null;
-    }
+*Try again in 10-15 minutes or try a different video!* ✨🌱`;
 };
 
 const validateVideoFile = async (videoPath) => {
