@@ -1,3 +1,4 @@
+// Updated src/handlers/textHandler.js
 const { detectedVideoLink } = require('../services/platformDetection');
 const {
     downloadVideoInfo,
@@ -8,6 +9,7 @@ const {
     getQueueLength
 } = require('../services/videoDownload');
 const { rateRecipe, getRecipeRating } = require('../database/ratingService');
+const { handleCustomScalingInput } = require('./scaleHandlers'); // NEW IMPORT
 
 const escapeHtml = (text) => {
     return text
@@ -109,6 +111,9 @@ const textHandler = async (ctx) => {
 
         const handledRatingNotes = await handleRatingNotes(ctx, userMessage);
         if (handledRatingNotes) return;
+
+        const handledCustomScaling = await handleCustomScalingInput(ctx, userMessage);
+        if (handledCustomScaling) return;
 
         if (detectedVideoLink(userMessage)) {
             const urlMatch = userMessage.match(/(https?:\/\/[^\s]+)/);

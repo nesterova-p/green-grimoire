@@ -258,6 +258,69 @@ ${recipe.structured_recipe}`;
             await ctx.reply('🐛 Error loading stats!');
         }
     });
+
+    bot.action(/^scale_recipe_(\d+)$/, async (ctx) => {
+        try {
+            const recipeId = ctx.match[1];
+            await ctx.answerCbQuery('⚖️ Opening scaling options...');
+            const { setupScaleButtonHandlers } = require('./scaleHandlers');
+
+            const mockContext = {
+                ...ctx,
+                match: [null, recipeId] // Simulate the match result
+            };
+
+            const recipe = await getRecipeById(recipeId, ctx.dbUser.id);
+            if (!recipe) {
+                await ctx.reply('❌ Recipe not found or not accessible!');
+                return;
+            }
+
+            const originalServings = recipe.servings || 'Unknown';
+            const message = `⚖️ **Recipe Scaling Options** ⚖️
+
+📝 **Recipe:** ${recipe.title}
+🍽️ **Current Servings:** ${originalServings}
+📅 **Created:** ${new Date(recipe.created_at).toLocaleDateString()}
+
+🎯 **Choose your scaling factor:**
+
+• **0.5x** - Half portions (great for testing)
+• **1x** - Original recipe (no scaling)
+• **2x** - Double portions (family meal)
+• **4x** - Quadruple portions (meal prep/party)
+• **Custom** - Enter any specific number
+
+🌿 *Smart scaling adjusts ingredients, timing, and equipment!* ✨`;
+
+            await ctx.reply(message, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '0.5x Half', callback_data: `scale_factor_${recipeId}_0.5` },
+                            { text: '1x Original', callback_data: `scale_factor_${recipeId}_1` }
+                        ],
+                        [
+                            { text: '2x Double', callback_data: `scale_factor_${recipeId}_2` },
+                            { text: '4x Quadruple', callback_data: `scale_factor_${recipeId}_4` }
+                        ],
+                        [
+                            { text: '🔢 Custom Scale', callback_data: `scale_custom_${recipeId}` }
+                        ],
+                        [
+                            { text: '📖 Preview Recipe', callback_data: `view_recipe_${recipeId}` },
+                            { text: '⬅️ Back', callback_data: 'back_to_recipe' }
+                        ]
+                    ]
+                }
+            });
+
+        } catch (error) {
+            console.error('Scale button handler error:', error);
+            await ctx.reply('🐛 Error opening scaling options!');
+        }
+    });
 };
 
 const setupRatingButtonHandlers = (bot) => {

@@ -823,7 +823,7 @@ ${recipeTextHtml}
             inline_keyboard: [
                 [
                     { text: '⭐ Rate', callback_data: `rate_recipe_${recipeId}` },
-                    { text: '🔄 Scale', callback_data: `scale_recipe_${recipeId}` }
+                    { text: '⚖️ Scale', callback_data: `scale_recipe_${recipeId}` }
                 ],
                 [
                     { text: '🌐 Translate', callback_data: `translate_recipe_${recipeId}` },
