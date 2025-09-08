@@ -1,7 +1,8 @@
 const { pendingDownloads } = require('../services/videoDownload');
 const { rateRecipe, getRecipeRating, deleteRecipeRating } = require('../database/ratingService');
-const { getRecipeById } = require('../database/recipeService');
+const { getRecipeById, updateRecipeNutrition  } = require('../database/recipeService');
 const { query } = require('../database/connection');
+const { analyzeRecipeNutrition } = require('../services/nutritionAnalyzer');
 
 const safeEditMessage = async (ctx, text, options = {}) => {
     try {
@@ -321,6 +322,193 @@ ${recipe.structured_recipe}`;
             await ctx.reply('🐛 Error opening scaling options!');
         }
     });
+
+    bot.action(/^analyze_nutrition_(\d+)$/, async (ctx) => {
+        try {
+            const recipeId = ctx.match[1];
+            await ctx.answerCbQuery('🔬 Analyzing nutrition...');
+            const recipe = await getRecipeById(recipeId, ctx.dbUser.id);
+            if (!recipe) {
+                await ctx.reply('❌ Recipe not found or not accessible!');
+                return;
+            }
+
+            const processingMsg = await ctx.reply(`🔬 **Analyzing Nutrition** 🔬
+
+📊 Calculating calories and macronutrients for "${recipe.title}"...
+🍎 Analyzing dietary compatibility...
+
+*This will take a moment...* ⚡`,
+                { parse_mode: 'Markdown' });
+
+            const nutritionResult = await analyzeRecipeNutrition(recipe.structured_recipe, recipe.title);
+
+            if (nutritionResult.success) {
+                const updatedRecipeContent = recipe.structured_recipe + nutritionResult.nutritionText;
+                try {
+                    await updateRecipeNutrition(recipeId, ctx.dbUser.id, updatedRecipeContent);
+                } catch (updateError) {
+                    console.log('Could not update recipe in database:', updateError.message);
+                }
+
+                try {
+                    await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
+                } catch (error) {}
+
+                await ctx.reply(`✅ Nutrition Analysis Complete! ✅
+
+📝 **Recipe:** ${recipe.title}
+
+${nutritionResult.nutritionText}
+
+💾 *Nutrition information has been saved to your recipe!*
+
+🌿 *Use this data to make informed health choices!* ✨`,
+                    { parse_mode: 'Markdown' });
+
+                const updatedButtons = getUpdatedRecipeKeyboard(recipeId, true);
+                await ctx.reply(`🍳 Updated Recipe Actions:`, {
+                    reply_markup: updatedButtons
+                });
+
+            } else {
+                try {
+                    await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
+                } catch (error) {}
+                await ctx.reply(`❌ Nutrition Analysis Failed ❌
+
+🐛 **Issue:** ${nutritionResult.error}
+
+🔧 **Possible causes:**
+• Ingredients not in nutrition database
+• Unclear ingredient quantities  
+• Complex ingredient preparations
+
+💡 **What you can try:**
+• Check if ingredients have clear measurements
+• Some recipes work better than others
+• Complex dishes may need manual analysis
+
+🌿 *Don't worry - your recipe is still saved!* ✨`,
+                    { parse_mode: 'Markdown' });
+            }
+
+        } catch (error) {
+            console.error('Nutrition analysis button error:', error);
+            await ctx.reply('🐛 Error during nutrition analysis! Please try again.');
+        }
+    });
+
+    bot.action('nutrition_help', async (ctx) => {
+        await ctx.answerCbQuery('💡 Loading nutrition help...');
+
+        const helpMessage = `📊 **About Nutrition Analysis** 📊
+
+🔬 **What it analyzes:**
+• 🔥 **Calories** per serving and total recipe
+• 💪 **Macronutrients** (protein, carbs, fat)
+• 🥗 **Fiber and sugar** content
+• 🏷️ **Dietary tags** (vegan, gluten-free, etc.)
+• 💡 **Health insights** and recommendations
+
+📋 **How it works:**
+• Analyzes ingredients from your recipe
+• Uses nutrition database of 50+ common foods
+• Calculates based on ingredient quantities
+• Provides estimates for healthy meal planning
+
+⚖️ **Accuracy notes:**
+• Values are estimates based on standard data
+• Actual nutrition may vary by preparation
+• Best for general dietary guidance
+• Professional nutrition advice recommended for medical needs
+
+🍎 **Perfect for:**
+• Calorie counting and weight management
+• Macro tracking for fitness goals
+• Identifying dietary restriction compatibility
+• Making informed healthy choices
+
+🌿 *Click "Analyze Nutrition" on any recipe to get detailed health information!* ✨`;
+
+        await ctx.reply(helpMessage, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '⬅️ Back', callback_data: 'nutrition_help_back' }]
+                ]
+            }
+        });
+    });
+
+    bot.action('nutrition_help_back', async (ctx) => {
+        await ctx.answerCbQuery('⬅️ Going back...');
+        await ctx.deleteMessage();
+    });
+};
+
+const getRecipeKeyboard = (recipeId, hasNutritionAnalysis = false) => {
+    const baseButtons = [
+        [
+            { text: '⭐ Rate', callback_data: `rate_recipe_${recipeId}` },
+            { text: '⚖️ Scale', callback_data: `scale_recipe_${recipeId}` }
+        ]
+    ];
+
+    if (!hasNutritionAnalysis) {
+        baseButtons.push([
+            { text: '📊 Analyze Nutrition', callback_data: `analyze_nutrition_${recipeId}` },
+            { text: '💡 Nutrition Help', callback_data: 'nutrition_help' }
+        ]);
+    } else {
+        baseButtons.push([
+            { text: '✅ Nutrition Analyzed', callback_data: 'nutrition_already_done' },
+            { text: '🔄 Re-analyze', callback_data: `analyze_nutrition_${recipeId}` }
+        ]);
+    }
+
+    return {
+        inline_keyboard: baseButtons
+    };
+};
+
+const getUpdatedRecipeKeyboard = (recipeId, hasNutrition = true) => {
+    return {
+        inline_keyboard: [
+            [
+                { text: '⭐ Rate', callback_data: `rate_recipe_${recipeId}` },
+                { text: '⚖️ Scale', callback_data: `scale_recipe_${recipeId}` }
+            ],
+            [
+                { text: '✅ Nutrition Complete', callback_data: 'nutrition_already_done' },
+                { text: '🔄 Re-analyze', callback_data: `analyze_nutrition_${recipeId}` }
+            ],
+            [
+                { text: '📖 View Recipe', callback_data: `view_recipe_${recipeId}` }
+            ]
+        ]
+    };
+};
+
+const setupNutritionStatusHandlers = (bot) => {
+    bot.action('nutrition_already_done', async (ctx) => {
+        await ctx.answerCbQuery('✅ This recipe already has nutrition analysis!');
+
+        await ctx.reply(`✅ **Nutrition Already Analyzed** ✅
+
+📊 This recipe already includes detailed nutrition information!
+
+🔍 **To view the nutrition data:**
+• Scroll up to see the complete recipe with nutrition
+• Look for the "📊 NUTRITION ANALYSIS" section
+
+🔄 **To update the analysis:**
+• Click "Re-analyze" if you've modified ingredients
+• Useful if the original analysis had errors
+
+🌿 *Your health data is ready to use!* ✨`,
+            { parse_mode: 'Markdown' });
+    });
 };
 
 const setupRatingButtonHandlers = (bot) => {
@@ -575,9 +763,154 @@ const setupStatsHandlers = (bot) => {
     });
 };
 
+const setupNutritionHandlers = (bot) => {
+    bot.action(/^analyze_nutrition_(\d+)$/, async (ctx) => {
+        try {
+            const recipeId = ctx.match[1];
+
+            await ctx.answerCbQuery('🔬 Analyzing nutrition...');
+
+            const recipe = await getRecipeById(recipeId, ctx.dbUser.id);
+            if (!recipe) {
+                await ctx.reply('❌ Recipe not found or not accessible!');
+                return;
+            }
+
+            const processingMsg = await ctx.reply(`🔬 **Analyzing Nutrition** 🔬
+
+📊 Calculating calories and macronutrients for "${recipe.title}"...
+🍎 Analyzing dietary compatibility...
+
+*This will take a moment...* ⚡`,
+                { parse_mode: 'Markdown' });
+
+            const nutritionResult = await analyzeRecipeNutrition(recipe.structured_recipe, recipe.title);
+
+            if (nutritionResult.success) {
+                const updatedRecipeContent = recipe.structured_recipe + nutritionResult.nutritionText;
+                try {
+                    await updateRecipeNutrition(recipeId, ctx.dbUser.id, updatedRecipeContent);
+                } catch (updateError) {
+                    console.log('Could not update recipe in database:', updateError.message);
+                }
+
+                try {
+                    await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
+                } catch (error) {}
+
+                await ctx.reply(`✅ **Nutrition Analysis Complete!** ✅
+
+📝 **Recipe:** ${recipe.title}
+
+${nutritionResult.nutritionText}
+
+💾 *Nutrition information has been saved to your recipe!*
+
+🌿 *Use this data to make informed health choices!* ✨`,
+                    { parse_mode: 'Markdown' });
+
+                setTimeout(async () => {
+                    try {
+                        await ctx.reply(`🔄 **Recipe Updated!** 
+
+📊 Nutrition analysis has been added to "${recipe.title}"
+✅ Future views will include the nutrition data
+🔍 Use /my_recipes to see your updated collection
+
+*Recipe now includes complete health information!* 🌿✨`,
+                            { parse_mode: 'Markdown' });
+                    } catch (error) {}
+                }, 1000);
+
+            } else {
+                try {
+                    await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
+                } catch (error) {}
+                await ctx.reply(`❌ **Nutrition Analysis Failed** ❌
+
+🐛 **Issue:** ${nutritionResult.error}
+
+🔧 **Possible causes:**
+• Ingredients not in nutrition database
+• Unclear ingredient quantities  
+• Complex ingredient preparations
+
+💡 **What you can try:**
+• Check if ingredients have clear measurements
+• Some recipes work better than others
+• Complex dishes may need manual analysis
+
+🌿 *Don't worry - your recipe is still saved!* ✨`,
+                    { parse_mode: 'Markdown' });
+            }
+        } catch (error) {
+            console.error('Nutrition analysis button error:', error);
+            await ctx.reply('🐛 Error during nutrition analysis! Please try again.');
+        }
+    });
+
+    bot.action('nutrition_help', async (ctx) => {
+        await ctx.answerCbQuery('💡 Loading nutrition help...');
+
+        const helpMessage = `📊 **About Nutrition Analysis** 📊
+
+🔬 **What it analyzes:**
+• 🔥 **Calories** per serving and total recipe
+• 💪 **Macronutrients** (protein, carbs, fat)
+• 🥗 **Fiber and sugar** content
+• 🏷️ **Dietary tags** (vegan, gluten-free, etc.)
+• 💡 **Health insights** and recommendations
+
+📋 **How it works:**
+• Analyzes ingredients from your recipe
+• Uses nutrition database of 50+ common foods
+• Calculates based on ingredient quantities
+• Provides estimates for healthy meal planning
+
+⚖️ **Accuracy notes:**
+• Values are estimates based on standard data
+• Actual nutrition may vary by preparation
+• Best for general dietary guidance
+
+🍎 **Perfect for:**
+• Calorie counting and weight management
+• Macro tracking for fitness goals
+• Identifying dietary restriction compatibility
+• Making informed healthy choices
+
+🌿 *Click "Analyze Nutrition" on any recipe to get detailed health information!* ✨`;
+
+        await ctx.reply(helpMessage, { parse_mode: 'Markdown' });
+    });
+
+    bot.action('nutrition_already_done', async (ctx) => {
+        await ctx.answerCbQuery('✅ This recipe already has nutrition analysis!');
+
+        await ctx.reply(`✅ **Nutrition Already Analyzed** ✅
+
+📊 This recipe already includes detailed nutrition information!
+
+🔍 **To view the nutrition data:**
+• Use /my_recipes to see your collection
+• Look for recipes with nutrition sections
+• Full nutrition details are included in the recipe text
+
+🔄 **To update the analysis:**
+• Click "Re-analyze" if you've modified ingredients
+• Useful if the original analysis had errors
+
+🌿 *Your health data is ready to use!* ✨`,
+            { parse_mode: 'Markdown' });
+    });
+};
+
 module.exports = {
     setupDownloadHandlers,
     setupRecipeHandlers,
     setupRatingButtonHandlers,
-    setupStatsHandlers
+    setupStatsHandlers,
+    setupNutritionHandlers,
+    setupNutritionStatusHandlers,
+    getRecipeKeyboard,
+    getUpdatedRecipeKeyboard
 };

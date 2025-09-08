@@ -178,6 +178,28 @@ const deleteRecipe = async (recipeId, userId) => {
     }
 };
 
+const updateRecipeNutrition = async (recipeId, userId, structuredRecipeWithNutrition) => {
+    try {
+        const result = await query(
+            `UPDATE recipes 
+             SET structured_recipe = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2 AND user_id = $3
+             RETURNING *`,
+            [structuredRecipeWithNutrition, recipeId, userId]
+        );
+
+        if (result.rows.length === 0) {
+            throw new Error('Recipe not found or not accessible');
+        }
+
+        console.log(`Recipe ${recipeId} updated with nutrition analysis`);
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error updating recipe nutrition:', error.message);
+        throw error;
+    }
+};
+
 module.exports = {
     saveRecipe,
     addRecipeToCategory,
@@ -185,5 +207,6 @@ module.exports = {
     getUserRecipes,
     searchUserRecipes,
     getRecipeById,
-    deleteRecipe
+    deleteRecipe,
+    updateRecipeNutrition
 };

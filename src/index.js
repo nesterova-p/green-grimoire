@@ -16,12 +16,12 @@ const forumStatusCommand = require('./commands/forumStatus');
 const { languageCommand, setupLanguageHandlers, updateUserCommandMenu } = require('./commands/language');
 const { resetForumCommand, setupResetForumHandlers } = require('./commands/resetForum');
 const { rateCommand, setupRatingHandlers } = require('./commands/rate');
-const { scaleCommand, setupScaleHandlers } = require('./commands/scale'); // NEW IMPORT
+const { scaleCommand, setupScaleHandlers } = require('./commands/scale');
 
 // import handlers
 const textHandler = require('./handlers/textHandler');
 const mediaHandler = require('./handlers/mediaHandler');
-const { setupDownloadHandlers, setupRecipeHandlers, setupRatingButtonHandlers, setupStatsHandlers } = require('./handlers/buttonHandlers');
+const { setupDownloadHandlers, setupRecipeHandlers, setupRatingButtonHandlers, setupStatsHandlers, setupNutritionHandlers } = require('./handlers/buttonHandlers');
 const { setupScaleButtonHandlers } = require('./handlers/scaleHandlers'); // NEW IMPORT
 
 const PersonalForumService = require('./services/personalForumService');
@@ -82,6 +82,7 @@ setupRatingButtonHandlers(bot);
 setupStatsHandlers(bot);
 setupScaleHandlers(bot);
 setupScaleButtonHandlers(bot);
+setupNutritionHandlers(bot);
 
 // handlers
 bot.on('text', textHandler);

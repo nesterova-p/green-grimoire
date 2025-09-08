@@ -818,18 +818,33 @@ ${recipeTextHtml}
         return htmlText;
     }
 
-    getRecipeKeyboard(recipeId) {
-        return {
-            inline_keyboard: [
-                [
-                    { text: '⭐ Rate', callback_data: `rate_recipe_${recipeId}` },
-                    { text: '⚖️ Scale', callback_data: `scale_recipe_${recipeId}` }
-                ],
-                [
-                    { text: '🌐 Translate', callback_data: `translate_recipe_${recipeId}` },
-                    { text: '📋 Share', callback_data: `share_recipe_${recipeId}` }
-                ]
+    getRecipeKeyboard(recipeId, hasNutritionAnalysis = false) {
+        const baseButtons = [
+            [
+                { text: '⭐ Rate', callback_data: `rate_recipe_${recipeId}` },
+                { text: '⚖️ Scale', callback_data: `scale_recipe_${recipeId}` }
             ]
+        ];
+
+        if (!hasNutritionAnalysis) {
+            baseButtons.push([
+                { text: '📊 Analyze Nutrition', callback_data: `analyze_nutrition_${recipeId}` },
+                { text: '💡 Help', callback_data: 'nutrition_help' }
+            ]);
+        } else {
+            baseButtons.push([
+                { text: '✅ Has Nutrition Data', callback_data: 'nutrition_already_done' },
+                { text: '🔄 Re-analyze', callback_data: `analyze_nutrition_${recipeId}` }
+            ]);
+        }
+
+        baseButtons.push([
+            { text: '🌐 Translate', callback_data: `translate_recipe_${recipeId}` },
+            { text: '📋 Share', callback_data: `share_recipe_${recipeId}` }
+        ]);
+
+        return {
+            inline_keyboard: baseButtons
         };
     }
 
