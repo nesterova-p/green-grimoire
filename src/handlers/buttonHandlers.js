@@ -1,6 +1,7 @@
 const { pendingDownloads } = require('../services/videoDownload');
 const { rateRecipe, getRecipeRating, deleteRecipeRating } = require('../database/ratingService');
 const { getRecipeById } = require('../database/recipeService');
+const { query } = require('../database/connection');
 
 const safeEditMessage = async (ctx, text, options = {}) => {
     try {
@@ -261,6 +262,8 @@ ${recipe.structured_recipe}`;
 
 const setupRatingButtonHandlers = (bot) => {
     bot.action(/rate_recipe_(\d+)/, async (ctx) => {
+        console.log(`🔍 RATE_RECIPE HANDLER CALLED: Recipe ${ctx.match[1]}, User ${ctx.dbUser.id}`);
+
         try {
             const recipeId = ctx.match[1];
             await ctx.answerCbQuery('⭐ Opening rating interface...');
@@ -272,6 +275,7 @@ const setupRatingButtonHandlers = (bot) => {
             }
 
             const existingRating = await getRecipeRating(recipeId, ctx.dbUser.id);
+            console.log(`🔍 EXISTING RATING:`, existingRating);
 
             const ratingText = existingRating ?
                 `🔄 **Update Rating** 🔄\n\n📝 **Recipe:** ${recipe.title}\n⭐ **Current Rating:** ${existingRating.rating}/5 stars\n${existingRating.notes ? `💭 **Notes:** "${existingRating.notes}"\n` : ''}\n🌿 *Choose your new rating:*` :
@@ -386,7 +390,9 @@ const setupRatingButtonHandlers = (bot) => {
         }
     });
 
-    bot.action(/remove_rating_(\d+)/, async (ctx) => {
+    bot.action(/^remove_rating_(\d+)$/, async (ctx) => {
+        console.log(`🔍 REMOVE_RATING HANDLER CALLED: Recipe ${ctx.match[1]}, User ${ctx.dbUser.id}`);
+
         try {
             const recipeId = ctx.match[1];
             await ctx.answerCbQuery('🗑️ Removing rating...');
@@ -396,6 +402,8 @@ const setupRatingButtonHandlers = (bot) => {
                 await ctx.reply('❌ Recipe not found!');
                 return;
             }
+
+            console.log(`🔍 SHOWING CONFIRMATION for recipe ${recipeId}`);
 
             await safeEditMessage(ctx, `🗑️ **Confirm Rating Removal** 🗑️
 
@@ -421,44 +429,43 @@ const setupRatingButtonHandlers = (bot) => {
         }
     });
 
-    bot.action(/confirm_remove_rating_(\d+)/, async (ctx) => {
+    bot.action(/^confirm_remove_rating_(\d+)$/, async (ctx) => {
+        console.log(`🔍 CONFIRM_REMOVE_RATING HANDLER CALLED: Recipe ${ctx.match[1]}, User ${ctx.dbUser.id}`);
+
         try {
             const recipeId = parseInt(ctx.match[1]);
             await ctx.answerCbQuery('🗑️ Removing rating...');
 
-            // Force delete using direct SQL
-            const deleteResult = await query(
-                'DELETE FROM recipe_ratings WHERE recipe_id = $1 AND user_id = $2',
-                [recipeId, ctx.dbUser.id]
-            );
+            console.log(`🗑️ ATTEMPTING DELETE: Recipe ${recipeId}, User ${ctx.dbUser.id}`);
+            const beforeRating = await getRecipeRating(recipeId, ctx.dbUser.id);
+            console.log(`🔍 RATING BEFORE DELETE:`, beforeRating);
 
-            const updateResult = await query(
-                `UPDATE recipes 
-             SET user_rating = NULL, rating_date = NULL, rating_notes = NULL
-             WHERE id = $1 AND user_id = $2`,
-                [recipeId, ctx.dbUser.id]
-            );
+            const deleted = await deleteRecipeRating(recipeId, ctx.dbUser.id);
+            console.log(`🗑️ DELETE FUNCTION RESULT: ${deleted}`);
 
-            if (deleteResult.rowCount > 0 || updateResult.rowCount > 0) {
-                await safeEditMessage(ctx, `✅ <b>Rating Removed</b> ✅
+            const afterRating = await getRecipeRating(recipeId, ctx.dbUser.id);
+            console.log(`🔍 RATING AFTER DELETE:`, afterRating);
 
-🗑️ The rating has been removed from your recipe
-📝 You can rate this recipe again anytime with /rate
+            if (deleted) {
+                await safeEditMessage(ctx, `✅ **Rating Successfully Removed!** ✅
 
-🌿 <i>Rating successfully cleared!</i> ✨`, {
-                    parse_mode: 'HTML'
+🗑️ The rating has been permanently deleted
+📝 You can rate this recipe again anytime
+
+🌿 *Rating cleared successfully!* ✨`, {
+                    parse_mode: 'Markdown'
                 });
             } else {
-                await safeEditMessage(ctx, `❌ <b>Rating Removal Failed</b> ❌
+                await safeEditMessage(ctx, `❌ **Rating Removal Failed** ❌
 
-No rating found to remove for this recipe.`, {
-                    parse_mode: 'HTML'
+Could not remove the rating. It may have already been deleted.`, {
+                    parse_mode: 'Markdown'
                 });
             }
 
         } catch (error) {
-            console.error('Confirm remove rating error:', error);
-            await ctx.reply('🐛 Error removing rating! Please try again.');
+            console.error('🐛 CONFIRM REMOVE ERROR:', error);
+            await ctx.reply(`🐛 Error: ${error.message}`);
         }
     });
 
