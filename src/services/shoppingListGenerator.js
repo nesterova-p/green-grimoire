@@ -254,10 +254,9 @@ const generateShoppingList = async (recipeIds, userId, listName = null) => {
             totalItems: Object.values(filteredIngredients).flat().length
         });
 
+        const formattedList = formatShoppingListForDisplay(filteredIngredients, recipes, finalListName, userPreferences);
 
-        const formattedList = formatShoppingListForDisplay(filteredIngredients, recipes, finalListName);
-
-        console.log(`✅ Shopping list generated: ${finalListName} (${Object.values(filteredIngredients).flat().length} items)`);
+        console.log(`✅ Shopping list generated: ${finalListName} (${Object.values(filteredIngredients).flat().length} items) with ${userPreferences?.store_layout || 'default'} layout`);
 
         return {
             success: true,
@@ -276,6 +275,83 @@ const generateShoppingList = async (recipeIds, userId, listName = null) => {
         };
     }
 };
+
+const updateStoreLayoutHandlers = (bot) => {
+    const layouts = ['default', 'grocery', 'supermarket', 'farmers'];
+    layouts.forEach(layout => {
+        bot.action(`layout_${layout}`, async (ctx) => {
+            await ctx.answerCbQuery(`🛒 Layout set to ${layout}`);
+            try {
+                await query(
+                    `INSERT INTO user_shopping_preferences (user_id, store_layout) 
+                     VALUES ($1, $2) 
+                     ON CONFLICT (user_id) 
+                     DO UPDATE SET store_layout = EXCLUDED.store_layout`,
+                    [ctx.dbUser.id, layout]
+                );
+
+                const layoutConfig = STORE_LAYOUTS[layout];
+
+                await ctx.editMessageText(
+                    `✅ **Store Layout Updated!** ✅
+
+🛒 **New Layout:** ${layoutConfig.name}
+📝 **Description:** ${layoutConfig.description}
+
+🏪 **Category Order:**
+${layoutConfig.categoryOrder.map((cat, i) => {
+                        const categoryName = INGREDIENT_CATEGORIES[cat]?.name || '📦 Other';
+                        return `${i + 1}. ${categoryName}`;
+                    }).join('\n')}
+
+🌿 *Your shopping lists will now follow this organization!* ✨`,
+                    { parse_mode: 'Markdown' }
+                );
+
+            } catch (error) {
+                console.error('Error saving store layout:', error);
+                await ctx.reply('🐛 Error saving layout preference!');
+            }
+        });
+    });
+};
+
+const improvedStoreLayoutMenu = async (ctx) => {
+    await ctx.answerCbQuery('🛒 Setting store layout...');
+
+    const message = `🛒 **Store Layout Preference** 🛒
+
+🏪 **Choose how your shopping lists are organized:**
+
+💡 **Each layout arranges categories differently to match your shopping flow:**
+
+🏪 **Default:** Standard organization
+🛒 **Grocery:** Typical grocery store flow  
+🏬 **Supermarket:** Large store organization
+🥬 **Farmers Market:** Fresh-first approach
+
+📍 **Select your preferred layout:**`;
+
+    await ctx.reply(message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '🏪 Default Layout', callback_data: 'layout_default' },
+                    { text: '🛒 Grocery Store', callback_data: 'layout_grocery' }
+                ],
+                [
+                    { text: '🏬 Supermarket', callback_data: 'layout_supermarket' },
+                    { text: '🥬 Farmers Market', callback_data: 'layout_farmers' }
+                ],
+                [
+                    { text: '⬅️ Back', callback_data: 'shopping_preferences' }
+                ]
+            ]
+        }
+    });
+};
+
 
 const getRecipesByIds = async (recipeIds, userId) => {
     try {
@@ -579,7 +655,30 @@ const categorizeIngredients = (ingredients) => {
     return result;
 };
 
-const formatShoppingListForDisplay = (categorizedIngredients, recipes, listName) => {
+const STORE_LAYOUTS = {
+    'default': {
+        name: '🏪 Default Layout',
+        description: 'Standard grocery organization',
+        categoryOrder: ['produce', 'meat', 'dairy', 'pantry', 'frozen', 'bakery', 'beverages', 'condiments', 'other']
+    },
+    'grocery': {
+        name: '🛒 Grocery Store Layout',
+        description: 'Typical grocery store flow',
+        categoryOrder: ['produce', 'bakery', 'dairy', 'meat', 'frozen', 'pantry', 'beverages', 'condiments', 'other']
+    },
+    'supermarket': {
+        name: '🏬 Supermarket Layout',
+        description: 'Large supermarket organization',
+        categoryOrder: ['pantry', 'produce', 'dairy', 'meat', 'frozen', 'beverages', 'bakery', 'condiments', 'other']
+    },
+    'farmers': {
+        name: '🥬 Farmers Market Layout',
+        description: 'Fresh-first organization',
+        categoryOrder: ['produce', 'dairy', 'meat', 'bakery', 'pantry', 'beverages', 'condiments', 'frozen', 'other']
+    }
+};
+
+const formatShoppingListForDisplay = (categorizedIngredients, recipes, listName, userPreferences = null) => {
     let formatted = `🛒 **${listName}** 🛒\n\n`;
 
     formatted += `📚 **From ${recipes.length} Recipe${recipes.length > 1 ? 's' : ''}:**\n`;
@@ -589,11 +688,15 @@ const formatShoppingListForDisplay = (categorizedIngredients, recipes, listName)
     formatted += '\n';
 
     const totalItems = Object.values(categorizedIngredients).flat().length;
-    formatted += `📝 **Shopping List** (${totalItems} items):\n\n`;
-    const categoryOrder = ['produce', 'meat', 'dairy', 'pantry', 'frozen', 'bakery', 'beverages', 'condiments', 'other'];
+    const storeLayout = userPreferences?.store_layout || 'default';
+    const layoutConfig = STORE_LAYOUTS[storeLayout] || STORE_LAYOUTS['default'];
+    const categoryOrder = layoutConfig.categoryOrder;
+
+    formatted += `📝 **Shopping List** (${totalItems} items):\n`;
+    formatted += `🏪 **Layout:** ${layoutConfig.name}\n\n`;
 
     for (const categoryKey of categoryOrder) {
-        if (categorizedIngredients[categoryKey]) {
+        if (categorizedIngredients[categoryKey] && categorizedIngredients[categoryKey].length > 0) {
             const ingredients = categorizedIngredients[categoryKey];
             const categoryName = INGREDIENT_CATEGORIES[categoryKey]?.name || '📦 Other';
             formatted += `${categoryName}:\n`;
@@ -615,13 +718,14 @@ const formatShoppingListForDisplay = (categorizedIngredients, recipes, listName)
 
     formatted += `💡 **Shopping Tips:**\n`;
     formatted += `• Check off items as you shop\n`;
-    formatted += `• Items are organized by store sections\n`;
+    formatted += `• Items organized for ${layoutConfig.description.toLowerCase()}\n`;
     formatted += `• Consolidated items save time and money\n\n`;
 
     formatted += `🌿 *Happy shopping and cooking!* ✨`;
 
     return formatted;
 };
+
 
 const parseQuantity = (quantityStr) => {
     if (!quantityStr) return null;
@@ -1031,5 +1135,9 @@ module.exports = {
     generateShoppingList,
     getUserShoppingLists,
     getUserShoppingPreferences,
-    INGREDIENT_CATEGORIES
+    INGREDIENT_CATEGORIES,
+    formatShoppingListForDisplay,
+    STORE_LAYOUTS,
+    updateStoreLayoutHandlers,
+    improvedStoreLayoutMenu
 };

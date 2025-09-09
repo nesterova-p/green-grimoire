@@ -1,10 +1,13 @@
 const { getUserRecipes, getRecipeById } = require('../database/recipeService');
-const { generateShoppingList, getUserShoppingLists, getUserShoppingPreferences } = require('../services/shoppingListGenerator');
+const { generateShoppingList, getUserShoppingLists, getUserShoppingPreferences, INGREDIENT_CATEGORIES  } = require('../services/shoppingListGenerator');
 const { query } = require('../database/connection');
 
 const pendingMultipleRecipeSelections = new Map();
+global.pendingDietarySettings = global.pendingDietarySettings || new Map();
 
 const setupShoppingHandlers = (bot) => {
+    const pendingDietarySettings = global.pendingDietarySettings;
+
     bot.action('shopping_single_recipe', async (ctx) => {
         try {
             await ctx.answerCbQuery('🍳 Loading recipes for single shopping list...');
@@ -557,7 +560,8 @@ ${result.formattedText}`,
             await ctx.answerCbQuery('🏷️ Setting dietary restrictions...');
             const currentPreferences = await getUserShoppingPreferences(ctx.dbUser.id);
 
-            pendingDietarySettings.set(ctx.from.id, {
+            global.pendingDietarySettings = global.pendingDietarySettings || new Map();
+            global.pendingDietarySettings.set(ctx.from.id, {
                 restrictions: currentPreferences.dietary_restrictions || [],
                 timestamp: Date.now()
             });
@@ -706,7 +710,7 @@ ${result.formattedText}`,
         bot.action(`toggle_diet_${diet}`, async (ctx) => {
             try {
                 const userId = ctx.from.id;
-                const currentState = pendingDietarySettings.get(userId);
+                const currentState = global.pendingDietarySettings.get(userId);
 
                 if (!currentState) {
                     await ctx.answerCbQuery('❌ Session expired! Please start over.');
@@ -714,7 +718,7 @@ ${result.formattedText}`,
                 }
 
                 if (Date.now() - currentState.timestamp > 10 * 60 * 1000) {
-                    pendingDietarySettings.delete(userId);
+                    global.pendingDietarySettings.delete(userId);
                     await ctx.answerCbQuery('⏰ Session expired! Please start over.');
                     return;
                 }
@@ -730,7 +734,7 @@ ${result.formattedText}`,
                     await ctx.answerCbQuery(`✅ Added ${diet.replace('_', ' ')}`);
                 }
 
-                pendingDietarySettings.set(userId, {
+                global.pendingDietarySettings.set(userId, {
                     ...currentState,
                     restrictions: restrictions
                 });
@@ -777,9 +781,8 @@ ${result.formattedText}`,
     bot.action('save_dietary_restrictions', async (ctx) => {
         try {
             await ctx.answerCbQuery('💾 Saving dietary restrictions...');
-
             const userId = ctx.from.id;
-            const currentState = pendingDietarySettings.get(userId);
+            const currentState = global.pendingDietarySettings.get(userId);
 
             if (!currentState) {
                 await ctx.reply('❌ Session expired! Please start over.');
@@ -787,17 +790,14 @@ ${result.formattedText}`,
             }
 
             await query(
-                `INSERT INTO user_shopping_preferences (user_id, dietary_restrictions) 
-             VALUES ($1, $2) 
-             ON CONFLICT (user_id) 
-             DO UPDATE SET dietary_restrictions = EXCLUDED.dietary_restrictions, updated_at = CURRENT_TIMESTAMP`,
+                `INSERT INTO user_shopping_preferences (user_id, dietary_restrictions)
+                 VALUES ($1, $2)
+                     ON CONFLICT (user_id) 
+                 DO UPDATE SET dietary_restrictions = EXCLUDED.dietary_restrictions, updated_at = CURRENT_TIMESTAMP`,
                 [ctx.dbUser.id, JSON.stringify(currentState.restrictions)]
             );
 
-            pendingDietarySettings.delete(userId);
-
-            const restrictionNames = currentState.restrictions.map(r => r.replace('_', ' ')).join(', ');
-
+            global.pendingDietarySettings.delete(userId);
             await ctx.editMessageText(
                 `✅ **Dietary Restrictions Saved!** ✅
 
@@ -825,7 +825,7 @@ ${currentState.restrictions.length > 0 ?
         try {
             await ctx.answerCbQuery('🔄 Clearing all restrictions...');
             const userId = ctx.from.id;
-            const currentState = pendingDietarySettings.get(userId);
+            const currentState = global.pendingDietarySettings.get(userId);
 
             if (!currentState) {
                 await ctx.reply('❌ Session expired! Please start over.');
@@ -833,7 +833,7 @@ ${currentState.restrictions.length > 0 ?
             }
 
             currentState.restrictions = [];
-            pendingDietarySettings.set(userId, currentState);
+            global.pendingDietarySettings.set(userId, currentState);
 
             await showDietaryRestrictionsMenu(ctx, [], ctx.callbackQuery.message.message_id);
 
@@ -964,17 +964,117 @@ ${currentState.restrictions.length > 0 ?
         }
     });
 
+    bot.action('reset_preferences', async (ctx) => {
+        try {
+            await ctx.answerCbQuery('🔄 Resetting all preferences...');
+
+            await ctx.reply(`🔄 **Reset All Preferences** 🔄
+
+⚠️ **This will permanently delete:**
+• All dietary restrictions
+• All excluded ingredients  
+• Store layout preference
+• Any other shopping customizations
+
+🌿 **Are you sure you want to reset everything?**
+
+⚡ *This action cannot be undone!*`,
+                {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                { text: '✅ Yes, Reset Everything', callback_data: 'confirm_reset_preferences' },
+                                { text: '❌ No, Keep My Settings', callback_data: 'cancel_reset_preferences' }
+                            ]
+                        ]
+                    }
+                }
+            );
+
+        } catch (error) {
+            console.error('Reset preferences error:', error);
+            await ctx.reply('🐛 Error loading reset options!');
+        }
+    });
+
+    bot.action('confirm_reset_preferences', async (ctx) => {
+        try {
+            await ctx.answerCbQuery('🗑️ Resetting all preferences...');
+
+            await query(
+                'DELETE FROM user_shopping_preferences WHERE user_id = $1',
+                [ctx.dbUser.id]
+            );
+
+            if (global.pendingDietarySettings) {
+                global.pendingDietarySettings.delete(ctx.from.id);
+            }
+            if (global.pendingIngredientExclusions) {
+                global.pendingIngredientExclusions.delete(ctx.from.id);
+            }
+
+            await ctx.editMessageText(
+                `✅ **All Preferences Reset!** ✅
+
+🧹 **What was cleared:**
+• ✅ Dietary restrictions removed
+• ✅ Excluded ingredients cleared
+• ✅ Store layout reset to default
+• ✅ All shopping customizations removed
+
+🌿 **Fresh Start!**
+Your shopping lists will now use default settings. You can set up new preferences anytime through the shopping menu.
+
+✨ *Ready for a new culinary adventure!* ✨`,
+                { parse_mode: 'Markdown' }
+            );
+
+        } catch (error) {
+            console.error('Confirm reset preferences error:', error);
+            await ctx.reply('🐛 Error resetting preferences! Please try again.');
+        }
+    });
+
+    bot.action('cancel_reset_preferences', async (ctx) => {
+        try {
+            await ctx.answerCbQuery('❌ Reset cancelled');
+            await ctx.editMessageText(
+                `🌿 **Preferences Preserved** 🌿
+
+📝 Your shopping preferences remain safely stored
+✨ *Wise choice! Your customizations are valuable!* ✨
+
+⚙️ Use the shopping preferences menu to make individual changes anytime.`,
+                { parse_mode: 'Markdown' }
+            );
+        } catch (error) {
+            console.error('Cancel reset preferences error:', error);
+        }
+    });
+
     setInterval(() => {
         const now = Date.now();
-        const timeout = 10 * 60 * 1000; // 10 minutes
+        const timeout = 10 * 60 * 1000; // 10 min
 
-        for (const [userId, state] of pendingDietarySettings.entries()) {
-            if (now - state.timestamp > timeout) {
-                pendingDietarySettings.delete(userId);
-                console.log(`🧹 Cleaned up expired dietary settings for user ${userId}`);
+        if (global.pendingDietarySettings) {
+            for (const [userId, state] of global.pendingDietarySettings.entries()) {
+                if (now - state.timestamp > timeout) {
+                    global.pendingDietarySettings.delete(userId);
+                    console.log(`🧹 Cleaned up expired dietary settings for user ${userId}`);
+                }
             }
         }
-    }, 5 * 60 * 1000); // every 5 min
+
+        if (global.pendingIngredientExclusions) {
+            for (const [userId, state] of global.pendingIngredientExclusions.entries()) {
+                if (now - state.timestamp > timeout) {
+                    global.pendingIngredientExclusions.delete(userId);
+                    console.log(`🧹 Cleaned up expired ingredient exclusions for user ${userId}`);
+                }
+            }
+        }
+    }, 5 * 60 * 1000);  // every 5 min
 };
 
 const showMultipleRecipeSelection = async (ctx, userId, messageId = null) => {
