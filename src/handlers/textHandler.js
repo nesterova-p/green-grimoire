@@ -71,6 +71,77 @@ const handleRatingNotes = async (ctx, userMessage) => {
     }
 };
 
+const handleIngredientExclusions = async (ctx, userMessage) => {
+    if (!global.pendingIngredientExclusions) return false;
+
+    const userId = ctx.from.id;
+    const pendingExclusion = global.pendingIngredientExclusions.get(userId);
+
+    if (!pendingExclusion) return false;
+
+    // 5 min
+    if (Date.now() - pendingExclusion.timestamp > 5 * 60 * 1000) {
+        global.pendingIngredientExclusions.delete(userId);
+        await ctx.reply('⏰ Ingredient exclusion session expired. Please use /shopping preferences to try again.');
+        return true;
+    }
+
+    if (userMessage.toLowerCase().trim() === '/cancel') {
+        global.pendingIngredientExclusions.delete(userId);
+        await ctx.reply('❌ Ingredient exclusions cancelled.');
+        return true;
+    }
+
+    try {
+        const ingredients = userMessage
+            .split(',')
+            .map(ing => ing.trim().toLowerCase())
+            .filter(ing => ing.length > 0);
+
+        if (ingredients.length === 0) {
+            await ctx.reply(`❌ **No valid ingredients found**
+
+📝 Please send ingredients separated by commas, like:
+"mushrooms, bell peppers, onions"
+
+🔄 Try again or send /cancel to skip.`);
+            return true;
+        }
+
+        const { query } = require('../database/connection');
+        await query(
+            `INSERT INTO user_shopping_preferences (user_id, exclude_ingredients) 
+             VALUES ($1, $2) 
+             ON CONFLICT (user_id) 
+             DO UPDATE SET exclude_ingredients = EXCLUDED.exclude_ingredients`,
+            [ctx.dbUser.id, JSON.stringify(ingredients)]
+        );
+
+        global.pendingIngredientExclusions.delete(userId);
+
+        await ctx.reply(`✅ **Ingredient Exclusions Updated** ✅
+
+🚫 **Excluded Ingredients:**
+${ingredients.map(ing => `• ${ing}`).join('\n')}
+
+🛒 **What this means:**
+• These ingredients will be removed from all shopping lists
+• Perfect for allergies, dislikes, or dietary needs
+• You can update this list anytime in shopping preferences
+
+🌿 *Your shopping lists just got more personalized!* ✨`,
+            { parse_mode: 'Markdown' });
+
+        return true;
+
+    } catch (error) {
+        console.error('Handle ingredient exclusions error:', error);
+        await ctx.reply('🐛 Error saving ingredient exclusions! Please try again.');
+        global.pendingIngredientExclusions.delete(userId);
+        return true;
+    }
+};
+
 const textHandler = async (ctx) => {
     const userMessage = ctx.message.text;
 
@@ -114,6 +185,9 @@ const textHandler = async (ctx) => {
 
         const handledCustomScaling = await handleCustomScalingInput(ctx, userMessage);
         if (handledCustomScaling) return;
+
+        const handledIngredientExclusions = await handleIngredientExclusions(ctx, userMessage);
+        if (handledIngredientExclusions) return;
 
         if (detectedVideoLink(userMessage)) {
             const urlMatch = userMessage.match(/(https?:\/\/[^\s]+)/);

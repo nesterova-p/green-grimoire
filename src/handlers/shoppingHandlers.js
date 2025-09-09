@@ -388,14 +388,590 @@ ${result.formattedText}`,
         await shoppingCommand(ctx);
     });
 
+    bot.action(/^delete_shopping_list_(\d+)$/, async (ctx) => {
+        try {
+            const listId = parseInt(ctx.match[1]);
+            await ctx.answerCbQuery('🗑️ Confirm deletion...');
+            const listResult = await query(
+                'SELECT * FROM shopping_lists WHERE id = $1 AND user_id = $2',
+                [listId, ctx.dbUser.id]
+            );
+
+            if (listResult.rows.length === 0) {
+                await ctx.reply('❌ Shopping list not found or not accessible!');
+                return;
+            }
+
+            const list = listResult.rows[0];
+            const createdDate = new Date(list.created_at).toLocaleDateString();
+
+            await ctx.reply(
+                `🗑️ **Confirm Shopping List Deletion** 🗑️
+
+📝 **List:** ${list.name}
+📊 **Items:** ${list.total_items} items from ${list.recipe_count} recipes
+📅 **Created:** ${createdDate}
+
+⚠️ **Are you sure you want to delete this shopping list?**
+🔄 This action cannot be undone.
+
+🌿 *Choose wisely, dear cook...* ✨`,
+                {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                { text: '✅ Yes, Delete List', callback_data: `confirm_delete_list_${listId}` },
+                                { text: '❌ No, Keep List', callback_data: 'cancel_delete_list' }
+                            ]
+                        ]
+                    }
+                }
+            );
+
+        } catch (error) {
+            console.error('Delete shopping list error:', error);
+            await ctx.reply('🐛 Error preparing list deletion!');
+        }
+    });
+
+    bot.action(/^confirm_delete_list_(\d+)$/, async (ctx) => {
+        try {
+            const listId = parseInt(ctx.match[1]);
+            await ctx.answerCbQuery('🗑️ Deleting shopping list...');
+            const deleteResult = await query(
+                'DELETE FROM shopping_lists WHERE id = $1 AND user_id = $2 RETURNING name',
+                [listId, ctx.dbUser.id]
+            );
+
+            if (deleteResult.rowCount > 0) {
+                const deletedName = deleteResult.rows[0].name;
+                await ctx.editMessageText(
+                    `✅ **Shopping List Deleted Successfully** ✅
+
+🗑️ **Removed:** "${deletedName}"
+📝 The shopping list has been permanently deleted
+
+🛒 **Create new lists anytime:**
+• From single recipes
+• Combining multiple recipes  
+• With smart ingredient consolidation
+
+🌿 *Ready for your next shopping adventure!* ✨`,
+                    { parse_mode: 'Markdown' }
+                );
+            } else {
+                await ctx.editMessageText(
+                    '❌ **Deletion Failed** ❌\n\nShopping list not found or already deleted.',
+                    { parse_mode: 'Markdown' }
+                );
+            }
+
+        } catch (error) {
+            console.error('Confirm delete shopping list error:', error);
+            await ctx.editMessageText('🐛 Error deleting shopping list! Please try again.');
+        }
+    });
+
+    bot.action('cancel_delete_list', async (ctx) => {
+        try {
+            await ctx.answerCbQuery('❌ Deletion cancelled');
+            await ctx.editMessageText(
+                `🌿 **Shopping List Preserved** 🌿
+
+📝 Your shopping list remains safely stored
+✨ *Moss approves of your careful consideration!* ✨
+
+🛒 Use /shopping to manage your lists anytime.`,
+                { parse_mode: 'Markdown' }
+            );
+        } catch (error) {
+            console.error('Cancel delete list error:', error);
+        }
+    });
+
+    bot.action('shopping_preferences', async (ctx) => {
+        try {
+            await ctx.answerCbQuery('⚙️ Loading shopping preferences...');
+            const preferences = await getUserShoppingPreferences(ctx.dbUser.id);
+            let message = `⚙️ **Shopping Preferences** ⚙️\n\n`;
+
+            message += `🏷️ **Current Dietary Restrictions:**\n`;
+            if (preferences.dietary_restrictions && preferences.dietary_restrictions.length > 0) {
+                preferences.dietary_restrictions.forEach(restriction => {
+                    message += `• ${restriction}\n`;
+                });
+            } else {
+                message += `• None set\n`;
+            }
+
+            message += `\n`;
+            message += `🚫 **Excluded Ingredients:**\n`;
+            if (preferences.exclude_ingredients && preferences.exclude_ingredients.length > 0) {
+                preferences.exclude_ingredients.forEach(ingredient => {
+                    message += `• ${ingredient}\n`;
+                });
+            } else {
+                message += `• None set\n`;
+            }
+            message += `\n`;
+
+            message += `🛒 **Store Layout:**\n`;
+            message += `• Current: ${preferences.store_layout || 'Default'}\n\n`;
+
+            message += `💡 **What preferences do:**\n`;
+            message += `• Filter out ingredients you can't/won't eat\n`;
+            message += `• Customize shopping list organization\n`;
+            message += `• Remember your dietary needs\n`;
+            message += `• Make shopping more efficient\n\n`;
+
+            message += `🌿 *Configure your perfect shopping experience!* ✨`;
+
+            await ctx.reply(message, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '🏷️ Dietary Restrictions', callback_data: 'set_dietary_restrictions' },
+                            { text: '🚫 Exclude Ingredients', callback_data: 'set_exclude_ingredients' }
+                        ],
+                        [
+                            { text: '🛒 Store Layout', callback_data: 'set_store_layout' },
+                            { text: '🔄 Reset All', callback_data: 'reset_preferences' }
+                        ],
+                        [
+                            { text: '⬅️ Back to Shopping', callback_data: 'back_to_shopping_menu' }
+                        ]
+                    ]
+                }
+            });
+
+        } catch (error) {
+            console.error('Shopping preferences error:', error);
+            await ctx.reply('🐛 Error loading shopping preferences!');
+        }
+    });
+
+    bot.action('set_dietary_restrictions', async (ctx) => {
+        try {
+            await ctx.answerCbQuery('🏷️ Setting dietary restrictions...');
+            const currentPreferences = await getUserShoppingPreferences(ctx.dbUser.id);
+
+            pendingDietarySettings.set(ctx.from.id, {
+                restrictions: currentPreferences.dietary_restrictions || [],
+                timestamp: Date.now()
+            });
+
+            await showDietaryRestrictionsMenu(ctx, currentPreferences.dietary_restrictions || []);
+        } catch (error) {
+            console.error('Set dietary restrictions error:', error);
+            await ctx.reply('🐛 Error loading dietary restrictions!');
+        }
+    });
+
+    const showDietaryRestrictionsMenu = async (ctx, currentRestrictions = [], messageId = null) => {
+        const restrictions = [
+            { key: 'vegetarian', name: '🌱 Vegetarian', desc: 'No meat products' },
+            { key: 'vegan', name: '🌿 Vegan', desc: 'No animal products' },
+            { key: 'gluten_free', name: '🌾 Gluten-Free', desc: 'No gluten-containing items' },
+            { key: 'dairy_free', name: '🥛 Dairy-Free', desc: 'No dairy products' },
+            { key: 'keto', name: '🥗 Keto', desc: 'Low-carb, high-fat diet' },
+            { key: 'paleo', name: '🥩 Paleo', desc: 'No processed foods, grains, legumes' },
+            { key: 'nut_free', name: '🌰 Nut-Free', desc: 'No tree nuts or peanuts' },
+            { key: 'shellfish_free', name: '🦐 Shellfish-Free', desc: 'No shellfish or crustaceans' }
+        ];
+
+        let message = `🏷️ **Dietary Restrictions** 🏷️\n\n`;
+        message += `✅ **Select your dietary restrictions:**\n\n`;
+
+        restrictions.forEach(restriction => {
+            const isSelected = currentRestrictions.includes(restriction.key);
+            const icon = isSelected ? '✅' : '☐';
+            message += `${icon} ${restriction.name}\n`;
+            message += `   ${restriction.desc}\n\n`;
+        });
+
+        message += `💡 **Selected restrictions will automatically filter ingredients from shopping lists.**\n\n`;
+        message += `🌿 *Toggle items above, then save your changes!* ✨`;
+
+        const keyboard = {
+            reply_markup: {
+                inline_keyboard: [
+                    ...restrictions.reduce((rows, restriction, index) => {
+                        if (index % 2 === 0) {
+                            rows.push([]);
+                        }
+                        const isSelected = currentRestrictions.includes(restriction.key);
+                        const icon = isSelected ? '✅' : '☐';
+                        rows[rows.length - 1].push({
+                            text: `${icon} ${restriction.name.replace(/🌱|🌿|🌾|🥛|🥗|🥩|🌰|🦐/, '')}`,
+                            callback_data: `toggle_diet_${restriction.key}`
+                        });
+                        return rows;
+                    }, []),
+                    [
+                        { text: '💾 Save Changes', callback_data: 'save_dietary_restrictions' },
+                        { text: '🔄 Clear All', callback_data: 'clear_dietary_restrictions' }
+                    ],
+                    [
+                        { text: '❌ Cancel', callback_data: 'shopping_preferences' }
+                    ]
+                ]
+            }
+        };
+
+        try {
+            if (messageId) {
+                await ctx.telegram.editMessageText(
+                    ctx.chat.id,
+                    messageId,
+                    null,
+                    message,
+                    { parse_mode: 'Markdown', ...keyboard }
+                );
+            } else {
+                await ctx.reply(message, { parse_mode: 'Markdown', ...keyboard });
+            }
+        } catch (error) {
+            console.error('Error showing dietary restrictions menu:', error);
+            await ctx.reply(message, { parse_mode: 'Markdown', ...keyboard });
+        }
+    };
+
+    bot.action('set_exclude_ingredients', async (ctx) => {
+        await ctx.answerCbQuery('🚫 Setting ingredient exclusions...');
+
+        await ctx.reply(`🚫 **Exclude Specific Ingredients** 🚫
+
+💭 **Send me ingredients you want to exclude from shopping lists.**
+
+📝 **Examples:**
+• "mushrooms"
+• "bell peppers, onions"  
+• "cilantro, coconut"
+
+🌿 **How it works:**
+• These ingredients will be removed from all shopping lists
+• Perfect for allergies, dislikes, or dietary restrictions
+• Case-insensitive matching
+
+📤 **Send your excluded ingredients list, or /cancel to skip:**`,
+            { parse_mode: 'Markdown' });
+
+        global.pendingIngredientExclusions = global.pendingIngredientExclusions || new Map();
+        global.pendingIngredientExclusions.set(ctx.from.id, {
+            timestamp: Date.now()
+        });
+    });
+
+    bot.action('set_store_layout', async (ctx) => {
+        await ctx.answerCbQuery('🛒 Setting store layout...');
+
+        const message = `🛒 **Store Layout Preference** 🛒
+
+🏪 **Choose your preferred shopping organization:**
+
+💡 **What this affects:**
+• Order of categories in shopping lists
+• Grouping of similar items
+• Flow through your typical store
+
+📍 **Select your store type:**`;
+        await ctx.reply(message, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '🏪 Default Layout', callback_data: 'layout_default' },
+                        { text: '🛒 Grocery Store', callback_data: 'layout_grocery' }
+                    ],
+                    [
+                        { text: '🏬 Supermarket', callback_data: 'layout_supermarket' },
+                        { text: '🥬 Farmers Market', callback_data: 'layout_farmers' }
+                    ],
+                    [
+                        { text: '⬅️ Back', callback_data: 'shopping_preferences' }
+                    ]
+                ]
+            }
+        });
+    });
+
+    const dietaryRestrictions = [
+        'vegetarian', 'vegan', 'gluten_free', 'dairy_free',
+        'keto', 'paleo', 'nut_free', 'shellfish_free'
+    ];
+
+    dietaryRestrictions.forEach(diet => {
+        bot.action(`toggle_diet_${diet}`, async (ctx) => {
+            try {
+                const userId = ctx.from.id;
+                const currentState = pendingDietarySettings.get(userId);
+
+                if (!currentState) {
+                    await ctx.answerCbQuery('❌ Session expired! Please start over.');
+                    return;
+                }
+
+                if (Date.now() - currentState.timestamp > 10 * 60 * 1000) {
+                    pendingDietarySettings.delete(userId);
+                    await ctx.answerCbQuery('⏰ Session expired! Please start over.');
+                    return;
+                }
+
+                const restrictions = currentState.restrictions;
+                const index = restrictions.indexOf(diet);
+
+                if (index > -1) {
+                    restrictions.splice(index, 1);
+                    await ctx.answerCbQuery(`❌ Removed ${diet.replace('_', ' ')}`);
+                } else {
+                    restrictions.push(diet);
+                    await ctx.answerCbQuery(`✅ Added ${diet.replace('_', ' ')}`);
+                }
+
+                pendingDietarySettings.set(userId, {
+                    ...currentState,
+                    restrictions: restrictions
+                });
+
+                await showDietaryRestrictionsMenu(ctx, restrictions, ctx.callbackQuery.message.message_id);
+
+            } catch (error) {
+                console.error('Toggle diet error:', error);
+                await ctx.answerCbQuery('🐛 Error toggling restriction!');
+            }
+        });
+    });
+
+    const layouts = ['default', 'grocery', 'supermarket', 'farmers'];
+    layouts.forEach(layout => {
+        bot.action(`layout_${layout}`, async (ctx) => {
+            await ctx.answerCbQuery(`🛒 Layout set to ${layout}`);
+            try {
+                await query(
+                    `INSERT INTO user_shopping_preferences (user_id, store_layout) 
+                 VALUES ($1, $2) 
+                 ON CONFLICT (user_id) 
+                 DO UPDATE SET store_layout = EXCLUDED.store_layout`,
+                    [ctx.dbUser.id, layout]
+                );
+
+                await ctx.editMessageText(
+                    `✅ **Store Layout Updated** ✅
+
+🛒 **New Layout:** ${layout.charAt(0).toUpperCase() + layout.slice(1)}
+🏪 Shopping lists will now be organized for this store type
+
+🌿 *Your shopping experience just got better!* ✨`,
+                    { parse_mode: 'Markdown' }
+                );
+
+            } catch (error) {
+                console.error('Error saving store layout:', error);
+                await ctx.reply('🐛 Error saving layout preference!');
+            }
+        });
+    });
+
+    bot.action('save_dietary_restrictions', async (ctx) => {
+        try {
+            await ctx.answerCbQuery('💾 Saving dietary restrictions...');
+
+            const userId = ctx.from.id;
+            const currentState = pendingDietarySettings.get(userId);
+
+            if (!currentState) {
+                await ctx.reply('❌ Session expired! Please start over.');
+                return;
+            }
+
+            await query(
+                `INSERT INTO user_shopping_preferences (user_id, dietary_restrictions) 
+             VALUES ($1, $2) 
+             ON CONFLICT (user_id) 
+             DO UPDATE SET dietary_restrictions = EXCLUDED.dietary_restrictions, updated_at = CURRENT_TIMESTAMP`,
+                [ctx.dbUser.id, JSON.stringify(currentState.restrictions)]
+            );
+
+            pendingDietarySettings.delete(userId);
+
+            const restrictionNames = currentState.restrictions.map(r => r.replace('_', ' ')).join(', ');
+
+            await ctx.editMessageText(
+                `✅ **Dietary Restrictions Saved!** ✅
+
+🏷️ **Your Restrictions:**
+${currentState.restrictions.length > 0 ?
+                    currentState.restrictions.map(r => `• ${r.replace('_', ' ')}`).join('\n') :
+                    '• None selected'}
+
+🛒 **What this means:**
+• Non-compliant ingredients will be filtered from shopping lists
+• Automatic dietary compliance checking
+• Personalized shopping experience
+
+🌿 *Your shopping lists are now customized to your dietary needs!* ✨`,
+                { parse_mode: 'Markdown' }
+            );
+
+        } catch (error) {
+            console.error('Save dietary restrictions error:', error);
+            await ctx.reply('🐛 Error saving dietary restrictions! Please try again.');
+        }
+    });
+
+    bot.action('clear_dietary_restrictions', async (ctx) => {
+        try {
+            await ctx.answerCbQuery('🔄 Clearing all restrictions...');
+            const userId = ctx.from.id;
+            const currentState = pendingDietarySettings.get(userId);
+
+            if (!currentState) {
+                await ctx.reply('❌ Session expired! Please start over.');
+                return;
+            }
+
+            currentState.restrictions = [];
+            pendingDietarySettings.set(userId, currentState);
+
+            await showDietaryRestrictionsMenu(ctx, [], ctx.callbackQuery.message.message_id);
+
+        } catch (error) {
+            console.error('Clear dietary restrictions error:', error);
+            await ctx.answerCbQuery('🐛 Error clearing restrictions!');
+        }
+    });
+
+    bot.action(/^view_shopping_list_(\d+)$/, async (ctx) => {
+        try {
+            const listId = parseInt(ctx.match[1]);
+            await ctx.answerCbQuery('👁️ Loading shopping list...');
+
+            const result = await query(
+                'SELECT * FROM shopping_lists WHERE id = $1 AND user_id = $2',
+                [listId, ctx.dbUser.id]
+            );
+
+            if (result.rows.length === 0) {
+                await ctx.reply('❌ Shopping list not found or not accessible!');
+                return;
+            }
+
+            const shoppingList = result.rows[0];
+            const createdDate = new Date(shoppingList.created_at).toLocaleDateString();
+            const categorizedIngredients = shoppingList.categorized_ingredients;
+
+            let message = `🛒 **${shoppingList.name}** 🛒\n\n`;
+            message += `📊 **Details:**\n`;
+            message += `• **${shoppingList.total_items}** items from **${shoppingList.recipe_count}** recipes\n`;
+            message += `• **Created:** ${createdDate}\n`;
+            message += `• **Status:** ${shoppingList.is_completed ? '✅ Completed' : '📝 Active'}\n\n`;
+
+            message += `📝 **Shopping List:**\n\n`;
+
+            for (const [categoryKey, ingredients] of Object.entries(categorizedIngredients)) {
+                const categoryName = INGREDIENT_CATEGORIES[categoryKey]?.name || '📦 Other';
+                message += `${categoryName}:\n`;
+
+                ingredients.forEach(ingredient => {
+                    const checkBox = shoppingList.is_completed ? '✅' : '☐';
+                    let itemText = `${checkBox} ${ingredient.combinedText}`;
+
+                    if (ingredient.isConsolidated && ingredient.recipes && ingredient.recipes.length > 1) {
+                        itemText += ` *(${ingredient.recipes.length} recipes)*`;
+                    }
+
+                    message += `  ${itemText}\n`;
+                });
+                message += `\n`;
+            }
+
+            message += `💡 **Shopping Tips:**\n`;
+            message += `• Use this as your shopping reference\n`;
+            message += `• Check items off as you shop\n`;
+            if (!shoppingList.is_completed) {
+                message += `• Mark as complete when done shopping\n`;
+            }
+            message += `\n🌿 *Happy shopping!* ✨`;
+
+            const buttons = [
+                [
+                    { text: '🗑️ Delete List', callback_data: `delete_shopping_list_${listId}` }
+                ],
+                [
+                    { text: '⬅️ Back to Lists', callback_data: 'view_shopping_lists' }
+                ]
+            ];
+
+            if (!shoppingList.is_completed) {
+                buttons.unshift([
+                    { text: '✅ Mark Complete', callback_data: `complete_shopping_list_${listId}` },
+                    { text: '🔄 Mark Incomplete', callback_data: `incomplete_shopping_list_${listId}` }
+                ]);
+            } else {
+                buttons.unshift([
+                    { text: '🔄 Mark Incomplete', callback_data: `incomplete_shopping_list_${listId}` }
+                ]);
+            }
+
+            await ctx.reply(message, {
+                parse_mode: 'Markdown',
+                reply_markup: { inline_keyboard: buttons }
+            });
+
+        } catch (error) {
+            console.error('View shopping list error:', error);
+            await ctx.reply('🐛 Error loading shopping list!');
+        }
+    });
+
+    bot.action(/^complete_shopping_list_(\d+)$/, async (ctx) => {
+        try {
+            const listId = parseInt(ctx.match[1]);
+            await ctx.answerCbQuery('✅ Marking list as complete...');
+
+            await query(
+                'UPDATE shopping_lists SET is_completed = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2',
+                [listId, ctx.dbUser.id]
+            );
+
+            await ctx.reply('✅ **Shopping List Completed!** ✅\n\n🎉 Great job finishing your shopping!\n🌿 *Ready for some cooking!* ✨',
+                { parse_mode: 'Markdown' });
+
+        } catch (error) {
+            console.error('Complete shopping list error:', error);
+            await ctx.reply('🐛 Error updating shopping list!');
+        }
+    });
+
+    bot.action(/^incomplete_shopping_list_(\d+)$/, async (ctx) => {
+        try {
+            const listId = parseInt(ctx.match[1]);
+            await ctx.answerCbQuery('🔄 Marking list as incomplete...');
+
+            await query(
+                'UPDATE shopping_lists SET is_completed = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2',
+                [listId, ctx.dbUser.id]
+            );
+
+            await ctx.reply('🔄 **Shopping List Reopened** 🔄\n\n📝 List is now active again!\n🛒 *Happy shopping!* ✨',
+                { parse_mode: 'Markdown' });
+
+        } catch (error) {
+            console.error('Reopen shopping list error:', error);
+            await ctx.reply('🐛 Error updating shopping list!');
+        }
+    });
+
     setInterval(() => {
         const now = Date.now();
         const timeout = 10 * 60 * 1000; // 10 minutes
 
-        for (const [userId, selection] of pendingMultipleRecipeSelections.entries()) {
-            if (now - selection.timestamp > timeout) {
-                pendingMultipleRecipeSelections.delete(userId);
-                console.log(`🧹 Cleaned up expired recipe selection for user ${userId}`);
+        for (const [userId, state] of pendingDietarySettings.entries()) {
+            if (now - state.timestamp > timeout) {
+                pendingDietarySettings.delete(userId);
+                console.log(`🧹 Cleaned up expired dietary settings for user ${userId}`);
             }
         }
     }, 5 * 60 * 1000); // every 5 min
