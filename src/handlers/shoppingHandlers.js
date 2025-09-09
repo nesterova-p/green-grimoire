@@ -1,5 +1,5 @@
 const { getUserRecipes, getRecipeById } = require('../database/recipeService');
-const { generateShoppingList, getUserShoppingLists } = require('../services/shoppingListGenerator');
+const { generateShoppingList, getUserShoppingLists, getUserShoppingPreferences } = require('../services/shoppingListGenerator');
 const { query } = require('../database/connection');
 
 const pendingMultipleRecipeSelections = new Map();

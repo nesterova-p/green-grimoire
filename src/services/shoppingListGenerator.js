@@ -1030,5 +1030,6 @@ const getUserShoppingLists = async (userId, limit = 10) => {
 module.exports = {
     generateShoppingList,
     getUserShoppingLists,
+    getUserShoppingPreferences,
     INGREDIENT_CATEGORIES
 };
