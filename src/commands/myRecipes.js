@@ -37,6 +37,10 @@ const myRecipesCommand = async (ctx) => {
                     [
                         { text: '🔍 Search Recipes', callback_data: 'search_recipes' },
                         { text: '📊 View Stats', callback_data: 'view_stats' }
+                    ],
+                    [
+                        { text: '🛒 Shopping Lists', callback_data: 'view_shopping_lists' },
+                        { text: '📝 Create Shopping List', callback_data: 'shopping_single_recipe' }
                     ]
                 ]
             }

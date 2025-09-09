@@ -3,6 +3,7 @@ const { rateRecipe, getRecipeRating, deleteRecipeRating } = require('../database
 const { getRecipeById, updateRecipeNutrition  } = require('../database/recipeService');
 const { query } = require('../database/connection');
 const { analyzeRecipeNutrition } = require('../services/nutritionAnalyzer');
+const { generateShoppingList } = require('../services/shoppingListGenerator');
 
 const safeEditMessage = async (ctx, text, options = {}) => {
     try {
@@ -445,6 +446,62 @@ ${nutritionResult.nutritionText}
         await ctx.answerCbQuery('⬅️ Going back...');
         await ctx.deleteMessage();
     });
+
+    bot.action(/^quick_shopping_(\d+)$/, async (ctx) => {
+        try {
+            const recipeId = parseInt(ctx.match[1]);
+            await ctx.answerCbQuery('🛒 Creating quick shopping list...');
+            const recipe = await getRecipeById(recipeId, ctx.dbUser.id);
+
+            if (!recipe) {
+                await ctx.reply('❌ Recipe not found!');
+                return;
+            }
+
+            const processingMsg = await ctx.reply(`🛒 **Quick Shopping List** 🛒
+
+📝 Generating shopping list for "${recipe.title}"...
+
+*Creating your organized shopping list...* ⚡`,
+                { parse_mode: 'Markdown' });
+
+            const result = await generateShoppingList([recipeId], ctx.dbUser.id);
+
+            try {
+                await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
+            } catch (e) {}
+
+            if (result.success) {
+                await ctx.reply(`✅ **Quick Shopping List Ready!** ✅
+
+${result.formattedText}`,
+                    {
+                        parse_mode: 'Markdown',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    { text: '📚 Add More Recipes', callback_data: 'shopping_multiple_recipes' },
+                                    { text: '📝 All My Lists', callback_data: 'view_shopping_lists' }
+                                ]
+                            ]
+                        }
+                    });
+            } else {
+                await ctx.reply(`❌ **Shopping List Failed** ❌
+
+🔧 Could not generate shopping list for this recipe.
+💡 Try using the full shopping menu: /shopping
+
+🌿 *Some recipes work better than others!* ✨`,
+                    { parse_mode: 'Markdown' });
+            }
+
+        } catch (error) {
+            console.error('Quick shopping error:', error);
+            await ctx.reply('🐛 Error creating quick shopping list!');
+        }
+    });
+
 };
 
 const getRecipeKeyboard = (recipeId, hasNutritionAnalysis = false) => {

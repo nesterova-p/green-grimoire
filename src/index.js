@@ -17,12 +17,14 @@ const { languageCommand, setupLanguageHandlers, updateUserCommandMenu } = requir
 const { resetForumCommand, setupResetForumHandlers } = require('./commands/resetForum');
 const { rateCommand, setupRatingHandlers } = require('./commands/rate');
 const { scaleCommand, setupScaleHandlers } = require('./commands/scale');
+const shoppingCommand = require('./commands/shopping');
 
 // import handlers
 const textHandler = require('./handlers/textHandler');
 const mediaHandler = require('./handlers/mediaHandler');
 const { setupDownloadHandlers, setupRecipeHandlers, setupRatingButtonHandlers, setupStatsHandlers, setupNutritionHandlers } = require('./handlers/buttonHandlers');
-const { setupScaleButtonHandlers } = require('./handlers/scaleHandlers'); // NEW IMPORT
+const { setupScaleButtonHandlers } = require('./handlers/scaleHandlers');
+const { setupShoppingHandlers } = require('./handlers/shoppingHandlers');
 
 const PersonalForumService = require('./services/personalForumService');
 
@@ -71,6 +73,8 @@ bot.command('forum_status', forumStatusCommand);
 bot.command('reset_forum', resetForumCommand);
 bot.command('rate', rateCommand);
 bot.command('scale', scaleCommand);
+bot.command('shopping', shoppingCommand);
+bot.command('shop', shoppingCommand);
 
 // buttons handlers
 setupDownloadHandlers(bot);
@@ -83,6 +87,7 @@ setupStatsHandlers(bot);
 setupScaleHandlers(bot);
 setupScaleButtonHandlers(bot);
 setupNutritionHandlers(bot);
+setupShoppingHandlers(bot);
 
 // handlers
 bot.on('text', textHandler);
@@ -117,7 +122,8 @@ const setupBotCommands = async () => {
             { command: 'reset_forum', description: '🗑️ Reset forum setup' },
             { command: 'stats', description: '📊 View your cooking statistics' },
             { command: 'rate', description: '⭐ Rate your recipes and track favorites' },
-            { command: 'scale', description: '⚖️ Scale recipes for different portions' }, // NEW COMMAND
+            { command: 'scale', description: '⚖️ Scale recipes for different portions' },
+            { command: 'shopping', description: '🛒 Generate smart shopping lists' },
             { command: 'language', description: '🌍 Change language preferences' },
             { command: 'setup_help', description: '🆘 Get forum setup assistance' },
             { command: 'help', description: '❓ Get help and instructions' },
@@ -142,7 +148,8 @@ const setupLanguageSpecificCommands = async () => {
             { command: 'reset_forum', description: '🗑️ Reset forum setup' },
             { command: 'stats', description: '📊 View your cooking statistics' },
             { command: 'rate', description: '⭐ Rate your recipes and track favorites' },
-            { command: 'scale', description: '⚖️ Scale recipes for different portions' }, // NEW
+            { command: 'scale', description: '⚖️ Scale recipes for different portions' },
+            { command: 'shopping', description: '🛒 Generate smart shopping lists' },
             { command: 'language', description: '🌍 Change language preferences' },
             { command: 'setup_help', description: '🆘 Get forum setup help' },
             { command: 'help', description: '❓ Get help and instructions' },
@@ -156,11 +163,12 @@ const setupLanguageSpecificCommands = async () => {
             { command: 'reset_forum', description: '🗑️ Resetuj forum' },
             { command: 'stats', description: '📊 Zobacz swoje statystyki gotowania' },
             { command: 'rate', description: '⭐ Oceń przepisy i śledź ulubione' },
-            { command: 'scale', description: '⚖️ Skaluj przepisy dla różnych porcji' }, // NEW
+            { command: 'scale', description: '⚖️ Skaluj przepisy dla różnych porcji' },
+            { command: 'shopping', description: '🛒 Generuj inteligentne listy zakupów' },
             { command: 'language', description: '🌍 Zmień preferencje językowe' },
             { command: 'setup_help', description: '🆘 Pomoc w konfiguracji forum' },
             { command: 'help', description: '❓ Uzyskaj pomoc i instrukcje' },
-            { command: 'ping', description: '🏓 Testuj responsywność bota' }
+            { command: 'ping', description: '🏓 Testuj bota' }
         ];
 
         const ukrainianCommands = [
@@ -170,7 +178,8 @@ const setupLanguageSpecificCommands = async () => {
             { command: 'reset_forum', description: '🗑️ Скинути форум' },
             { command: 'stats', description: '📊 Переглянути статистику рецептів' },
             { command: 'rate', description: '⭐ Оцінити рецепти та відстежувати улюблені' },
-            { command: 'scale', description: '⚖️ Масштабувати рецепти для різних порцій' }, // NEW
+            { command: 'scale', description: '⚖️ Масштабувати рецепти для різних порцій' },
+            { command: 'shopping', description: '🛒 Створити розумні списки покупок' },
             { command: 'language', description: '🌍 Змінити мовні налаштування' },
             { command: 'setup_help', description: '🆘 Допомога з налаштуванням форуму' },
             { command: 'help', description: '❓ Отримати допомогу та інструкції' },
@@ -181,7 +190,7 @@ const setupLanguageSpecificCommands = async () => {
         await bot.telegram.setMyCommands(polishCommands, { language_code: 'pl' });
         await bot.telegram.setMyCommands(ukrainianCommands, { language_code: 'uk' });
 
-        console.log('✅ Language specific command menus configured!');
+        console.log('✅ Language specific command menus configured with shopping!');
 
     } catch (error) {
         console.error('❌ Error setting language specific commands:', error);
@@ -200,8 +209,7 @@ const startBot = async () => {
         await bot.launch();
         console.log('🌿 GreenGrimoire is alive and ready!');
         console.log('📱 Users can now create personal recipe forums!');
-        console.log('⚖️ Recipe scaling functionality is now available!'); // NEW LOG
-
+        console.log('⚖️ Recipe scaling functionality is now available!');
     } catch (error) {
         console.error('❌ Failed to start bot:', error.message);
         process.exit(1);

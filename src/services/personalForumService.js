@@ -829,12 +829,12 @@ ${recipeTextHtml}
         if (!hasNutritionAnalysis) {
             baseButtons.push([
                 { text: '📊 Analyze Nutrition', callback_data: `analyze_nutrition_${recipeId}` },
-                { text: '💡 Help', callback_data: 'nutrition_help' }
+                { text: '🛒 Shopping List', callback_data: `generate_single_list_${recipeId}` }
             ]);
         } else {
             baseButtons.push([
                 { text: '✅ Has Nutrition Data', callback_data: 'nutrition_already_done' },
-                { text: '🔄 Re-analyze', callback_data: `analyze_nutrition_${recipeId}` }
+                { text: '🛒 Shopping List', callback_data: `generate_single_list_${recipeId}` }
             ]);
         }
 
