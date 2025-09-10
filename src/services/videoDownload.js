@@ -34,6 +34,365 @@ const escapeMarkdown = (text) => {
         .replace(/!/g, '\\!');
 };
 
+const getVideoInfo = async (videoPath) => {
+    return new Promise((resolve, reject) => {
+        const ffprobe = spawn('ffprobe', [
+            '-v', 'quiet',
+            '-print_format', 'json',
+            '-show_format',
+            '-show_streams',
+            videoPath
+        ]);
+
+        let output = '';
+
+        ffprobe.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        ffprobe.on('close', async (code) => {
+            if (code !== 0) {
+                reject(new Error('FFprobe failed'));
+                return;
+            }
+
+            try {
+                const info = JSON.parse(output);
+                const videoStream = info.streams.find(stream => stream.codec_type === 'video');
+                const format = info.format;
+
+                if (!videoStream || !format) {
+                    reject(new Error('Invalid video file'));
+                    return;
+                }
+
+                const stats = await fs.stat(videoPath);
+
+                resolve({
+                    duration: parseFloat(format.duration) || 0,
+                    width: parseInt(videoStream.width) || 0,
+                    height: parseInt(videoStream.height) || 0,
+                    bitrate: parseInt(format.bit_rate) || 0,
+                    sizeMB: stats.size / (1024 * 1024),
+                    codec: videoStream.codec_name
+                });
+            } catch (error) {
+                reject(new Error(`Failed to parse video info: ${error.message}`));
+            }
+        });
+
+        ffprobe.on('error', (error) => {
+            reject(error);
+        });
+    });
+};
+
+const compressVideo = async (inputPath, outputPath, targetSizeMB = 45, ctx = null, progressId = null) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const videoInfo = await getVideoInfo(inputPath);
+            const originalSizeMB = videoInfo.sizeMB;
+            const durationSeconds = videoInfo.duration;
+
+            if (!durationSeconds || durationSeconds <= 0) {
+                throw new Error('Invalid video duration');
+            }
+
+            const targetBitrateKbps = Math.floor((targetSizeMB * 8 * 1024) / durationSeconds * 0.9);
+
+            const minBitrateKbps = 200;
+            const finalBitrateKbps = Math.max(targetBitrateKbps, minBitrateKbps);
+
+            console.log(`🎬 Compressing: ${originalSizeMB.toFixed(1)}MB → ${targetSizeMB}MB (${finalBitrateKbps}kbps)`);
+
+            if (ctx && progressId) {
+                await sendProgressUpdate(ctx, progressId, 'compressing',
+                    `🗜️ Compressing video: ${originalSizeMB.toFixed(1)}MB → ${targetSizeMB}MB...`);
+            }
+
+            const ffmpegArgs = [
+                '-i', inputPath,
+                '-c:v', 'libx264',           // H.264 video codec
+                '-preset', 'medium',          // Encoding speed/quality balance
+                '-crf', '28',                 // Constant Rate Factor (18-28 good range)
+                '-b:v', `${finalBitrateKbps}k`, // Video bitrate
+                '-maxrate', `${finalBitrateKbps * 1.2}k`, // Max bitrate (20% buffer)
+                '-bufsize', `${finalBitrateKbps * 2}k`,   // Buffer size
+                '-c:a', 'aac',               // Audio codec
+                '-b:a', '64k',               // Audio bitrate (reduced for space)
+                '-ac', '2',                  // Stereo audio
+                '-ar', '44100',              // Audio sample rate
+                '-movflags', '+faststart',   // Optimize for streaming
+                '-f', 'mp4',                 // Output format
+                '-y',                        // Overwrite output
+                '-hide_banner',              // Reduce log noise
+                '-loglevel', 'error',        // Only show errors
+                outputPath
+            ];
+
+            if (videoInfo.width > 1280 || videoInfo.height > 720) {
+                ffmpegArgs.splice(-3, 0, '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease:force_divisible_by=2');
+            } else if (videoInfo.width > 854 || videoInfo.height > 480) {
+                ffmpegArgs.splice(-3, 0, '-vf', 'scale=854:480:force_original_aspect_ratio=decrease:force_divisible_by=2');
+            }
+
+            const ffmpeg = spawn('ffmpeg', ffmpegArgs);
+
+            let progress = 0;
+            let stderr = '';
+
+            ffmpeg.stderr.on('data', (data) => {
+                const output = data.toString();
+                stderr += output;
+                const timeMatch = output.match(/time=(\d{2}):(\d{2}):(\d{2})/);
+                if (timeMatch && durationSeconds > 0) {
+                    const [, hours, minutes, seconds] = timeMatch;
+                    const currentSeconds = parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds);
+                    const newProgress = Math.min(Math.floor((currentSeconds / durationSeconds) * 100), 100);
+
+                    if (newProgress - progress >= 10 && ctx && progressId) {
+                        progress = newProgress;
+                        sendProgressUpdate(ctx, progressId, 'compressing',
+                            `🗜️ Compressing video: ${progress}% complete...`).catch(() => {});
+                    }
+                }
+            });
+
+            ffmpeg.on('close', async (code) => {
+                if (code === 0) {
+                    try {
+                        const stats = await fs.stat(outputPath);
+                        const compressedSizeMB = stats.size / (1024 * 1024);
+
+                        console.log(`✅ Compression complete: ${compressedSizeMB.toFixed(1)}MB`);
+
+                        if (compressedSizeMB > targetSizeMB + 5) {
+                            console.log(`⚠️ Still too large (${compressedSizeMB.toFixed(1)}MB), trying aggressive compression...`);
+
+                            if (ctx && progressId) {
+                                await sendProgressUpdate(ctx, progressId, 'compressing',
+                                    `🗜️ Applying aggressive compression...`);
+                            }
+
+                            const aggressiveOutput = outputPath.replace('.mp4', '_aggressive.mp4');
+                            const compressedAgain = await compressVideoAggressive(inputPath, aggressiveOutput, targetSizeMB);
+
+                            try { await fs.remove(outputPath); } catch (e) {}
+
+                            resolve(compressedAgain);
+                        } else {
+                            resolve(outputPath);
+                        }
+                    } catch (error) {
+                        reject(new Error(`Compression output verification failed: ${error.message}`));
+                    }
+                } else {
+                    const errorMsg = stderr.slice(-500); // Last 500 chars of error
+                    reject(new Error(`FFmpeg compression failed (code ${code}): ${errorMsg}`));
+                }
+            });
+
+            ffmpeg.on('error', (error) => {
+                reject(new Error(`FFmpeg spawn error: ${error.message}`));
+            });
+
+            setTimeout(() => {
+                ffmpeg.kill('SIGKILL');
+                reject(new Error('Video compression timeout after 5 minutes'));
+            }, 5 * 60 * 1000);
+
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+const compressVideoAggressive = async (inputPath, outputPath, targetSizeMB = 45) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const videoInfo = await getVideoInfo(inputPath);
+            const durationSeconds = videoInfo.duration;
+            const targetBitrateKbps = Math.floor((targetSizeMB * 8 * 1024) / durationSeconds * 0.8);
+            const minBitrateKbps = 150;
+            const finalBitrateKbps = Math.max(targetBitrateKbps, minBitrateKbps);
+
+            const ffmpegArgs = [
+                '-i', inputPath,
+                '-c:v', 'libx264',
+                '-preset', 'slow',            // Slower preset for better compression
+                '-crf', '32',                 // Higher CRF = more compression
+                '-b:v', `${finalBitrateKbps}k`,
+                '-maxrate', `${finalBitrateKbps}k`,
+                '-bufsize', `${finalBitrateKbps}k`,
+                '-vf', 'scale=640:360:force_original_aspect_ratio=decrease:force_divisible_by=2', // Lower resolution
+                '-c:a', 'aac',
+                '-b:a', '32k',               // Lower audio bitrate
+                '-ac', '1',                  // Mono audio
+                '-ar', '22050',              // Lower sample rate
+                '-movflags', '+faststart',
+                '-f', 'mp4',
+                '-y',
+                '-hide_banner',
+                '-loglevel', 'error',
+                outputPath
+            ];
+
+            const ffmpeg = spawn('ffmpeg', ffmpegArgs);
+
+            ffmpeg.on('close', (code) => {
+                if (code === 0) {
+                    resolve(outputPath);
+                } else {
+                    reject(new Error(`Aggressive compression failed with code ${code}`));
+                }
+            });
+
+            ffmpeg.on('error', (error) => {
+                reject(error);
+            });
+
+        } catch (error) {
+            reject(error);
+        }
+    });
+};
+
+const sendVideoToUserWithCompression = async (ctx, videoPath, videoInfo, progressId) => {
+    try {
+        if (!await fs.pathExists(videoPath)) {
+            console.log('Video file not found');
+            return { success: false };
+        }
+
+        const stats = await fs.stat(videoPath);
+        const fileSizeMB = stats.size / (1024 * 1024);
+
+        await sendProgressUpdate(ctx, progressId, 'uploading',
+            `📤 Preparing to send original video (${fileSizeMB.toFixed(1)}MB)...`);
+
+        let finalVideoPath = videoPath;
+        let wasCompressed = false;
+
+        if (fileSizeMB > 50) {
+            try {
+                const timestamp = Date.now();
+                const compressedPath = `./temp/compressed_${timestamp}.mp4`;
+
+                await sendProgressUpdate(ctx, progressId, 'compressing',
+                    `🗜️ Video too large (${fileSizeMB.toFixed(1)}MB), compressing for Telegram...`);
+
+                finalVideoPath = await compressVideo(videoPath, compressedPath, 45, ctx, progressId);
+                wasCompressed = true;
+
+                const compressedStats = await fs.stat(finalVideoPath);
+                const compressedSizeMB = compressedStats.size / (1024 * 1024);
+
+                console.log(`📦 Compression result: ${fileSizeMB.toFixed(1)}MB → ${compressedSizeMB.toFixed(1)}MB`);
+
+                // Final check
+                if (compressedSizeMB > 50) {
+                    await ctx.reply(`📱 **Video Still Too Large After Compression** 📱
+
+🎬 **Original Size:** ${fileSizeMB.toFixed(1)}MB
+🗜️ **Compressed Size:** ${compressedSizeMB.toFixed(1)}MB
+⚠️ **Telegram Limit:** 50MB max for bots
+
+📱 **Original video at:** ${videoInfo.original_video_url || videoInfo.webpage_url || 'source platform'}
+🔍 **Recipe extraction continues below...**
+
+*Moss extracted maximum compression magic but video is still too large!* ✨`,
+                        { parse_mode: 'Markdown' });
+
+                    try { await fs.remove(finalVideoPath); } catch (e) {}
+                    return { success: false };
+                }
+
+            } catch (compressionError) {
+                console.error('Compression failed:', compressionError);
+
+                await ctx.reply(`📱 **Video Compression Failed** 📱
+
+🎬 **Video Size:** ${fileSizeMB.toFixed(1)}MB
+⚠️ **Error:** ${compressionError.message}
+
+📱 **Original video at:** ${videoInfo.original_video_url || videoInfo.webpage_url || 'source platform'}
+🔍 **Recipe extraction continues below...**
+
+*Moss's compression spell encountered interference!* ✨`,
+                    { parse_mode: 'Markdown' });
+                return { success: false };
+            }
+        }
+
+        const finalStats = await fs.stat(finalVideoPath);
+        const finalSizeMB = finalStats.size / (1024 * 1024);
+
+        await sendProgressUpdate(ctx, progressId, 'uploading',
+            `📤 Uploading ${wasCompressed ? 'compressed ' : ''}video (${finalSizeMB.toFixed(1)}MB)...`);
+
+        const videoTitle = escapeMarkdown(videoInfo.title || 'Cooking Video');
+        const duration = videoInfo.duration ? `${Math.floor(videoInfo.duration / 60)}m ${Math.floor(videoInfo.duration % 60)}s` : 'Unknown';
+        const platform = escapeMarkdown(videoInfo.video_platform || 'Unknown');
+
+        const compressionNote = wasCompressed ?
+            `\n🗜️ **Compressed:** ${fileSizeMB.toFixed(1)}MB → ${finalSizeMB.toFixed(1)}MB` : '';
+
+        const caption = `🎬 **Original Cooking Video** 🎬
+
+📝 **Title:** ${videoTitle}
+⏱️ **Duration:** ${duration}
+📱 **Platform:** ${platform}${compressionNote}
+
+🔍 *Recipe extraction in progress... Stand by!* ⚡`;
+
+        const sentVideo = await ctx.replyWithVideo(
+            { source: finalVideoPath },
+            {
+                caption: caption,
+                parse_mode: 'Markdown',
+                duration: videoInfo.duration,
+                supports_streaming: true
+            }
+        );
+
+        console.log(`📤 Video sent successfully: ${finalSizeMB.toFixed(1)}MB${wasCompressed ? ' (compressed)' : ''}`);
+
+        // clean up compressed file if was created
+        if (wasCompressed && finalVideoPath !== videoPath) {
+            setTimeout(async () => {
+                try {
+                    await fs.remove(finalVideoPath);
+                    console.log(`🧹 Cleaned up compressed video: ${finalVideoPath}`);
+                } catch (error) {
+                    console.error('Compressed file cleanup error:', error);
+                }
+            }, 60 * 60 * 1000); // 1 h
+        }
+
+        return {
+            success: true,
+            messageId: sentVideo.message_id,
+            fileId: sentVideo.video.file_id,
+            chatId: ctx.chat.id,
+            wasCompressed
+        };
+
+    } catch (error) {
+        console.error('Video sending error:', error);
+
+        const errorMessage = escapeMarkdown(error.message || 'Unknown upload interference');
+        await ctx.reply(`🐛 **Video Upload Error** 🐛
+
+${errorMessage}
+📱 Video may be accessible at source platform
+🔍 **Recipe extraction continues below...**
+
+*Moss will still capture the culinary secrets!* ✨`,
+            { parse_mode: 'Markdown' });
+        return { success: false };
+    }
+};
+
 // buttons
 const createDownloadConfirmationButtons = (videoInfo) => {
     return {
@@ -353,7 +712,7 @@ ${error.stderr || 'No additional error info'}`);
         await sendProgressUpdate(ctx, progressId, 'uploading',
             '🎬 Delivering your validated video...');
 
-        const videoMessageInfo = await sendVideoToUser(ctx, videoPath, videoInfo, progressId);
+        const videoMessageInfo = await sendVideoToUserWithCompression(ctx, videoPath, videoInfo, progressId);
 
         await sendProgressUpdate(ctx, progressId, 'processing',
             '🧠 Now analyzing the video content for recipe extraction...');
@@ -772,6 +1131,10 @@ ${errorMessage}
 };
 
 module.exports = {
+    compressVideo,
+    compressVideoAggressive,
+    getVideoInfo,
+    sendVideoToUserWithCompression,
     downloadVideoInfo,
     downloadActualVideo,
     handleDownloadConfirmation,

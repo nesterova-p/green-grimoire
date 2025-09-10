@@ -840,7 +840,6 @@ ${recipeTextHtml}
 
         baseButtons.push([
             { text: '🌐 Translate', callback_data: `translate_recipe_${recipeId}` },
-            { text: '📋 Share', callback_data: `share_recipe_${recipeId}` }
         ]);
 
         return {
