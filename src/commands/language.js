@@ -46,6 +46,21 @@ const languageCommand = async (ctx) => {
 };
 
 const setupLanguageHandlers = (bot) => {
+    bot.action('open_language_menu', async (ctx) => {
+        try {
+            await ctx.answerCbQuery('🌍 Opening language menu...');
+            try {
+                await ctx.deleteMessage();
+            } catch (deleteError) {}
+
+            await languageCommand(ctx);
+
+        } catch (error) {
+            console.error('Error opening language menu:', error);
+            await ctx.answerCbQuery('Error opening language menu');
+        }
+    });
+
     bot.action(/^set_lang_(.+)$/, async (ctx) => {
         try {
             const languageCode = ctx.match[1];
@@ -143,7 +158,6 @@ const updateUserCommandMenu = async (ctx, languageCode, botInstance) => {
             scope: { type: 'chat', chat_id: ctx.chat.id }
         });
 
-        // Set menu button
         await botInstance.telegram.setChatMenuButton({
             chat_id: ctx.chat.id,
             menu_button: {
