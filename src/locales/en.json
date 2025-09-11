@@ -1,0 +1,67 @@
+{
+  "commands": {
+    "start": {
+      "welcome": "🌿✨ *Greetings, {username}!* ✨🌿\n\n*Moss the Green Keeper awakens from the ancient grimoire...*\n\n🍄 I am the guardian of this enchanted recipe tome! Within these pages lie the culinary secrets of countless realms and kitchens.\n\n🔮 *Current magical abilities:*\n- Conversing with fellow cooks\n- Extracting recipes from cooking videos\n- Organizing recipes in your collection\n\n🌍 *Language Magic:* I automatically adapted to your language! Use /language to change it anytime.\n\n*Send /help to view my spell book, dear cook!* 📜⚡",
+      "welcome_back": "🌿✨ *Welcome back, {username}!* ✨🌿\n\n*Moss recognizes a fellow culinary adventurer!*\n\n📚 **Your Personal Recipe Grimoire is Ready!**\n\n📱 **Your Forum:** [{forum_name}]({forum_link})\n📂 **Categories:** {categories_count} recipe topics organized\n📝 **Recipes:** {recipes_count} culinary treasures saved\n\n🍳 **Ready to cook?** Send me any cooking video link and I'll:\n• 🔮 Extract the recipe using ancient AI magic\n• 📂 Organize it in the appropriate category topic\n• 🎬 Keep the original video for reference\n• ✨ Make it searchable in your personal collection\n\n🌍 *Speaking your language:* {current_language}\n*Change anytime with /language*\n\n🌱 *Your culinary journey continues! Send me a cooking video to begin...*\n\n*Use /help for more magical commands!* 📜⚡",
+      "setup_in_progress": "🔄 **Setup In Progress** 🔄\n\nHi {username}! I see you started setting up your personal recipe forum but didn't complete it.\n\n🎯 **To finish setup:**\n1. Go to your forum: \"{forum_name}\"\n2. Make sure I'm added as admin with \"Manage Topics\" permission\n3. Send your setup code in the forum\n\n🆘 **Need help?** Send /setup_help for detailed instructions\n🔄 **Start over?** I can guide you through a fresh setup!\n\n*Let's get your recipe organization working perfectly!* 🌿✨",
+      "language_auto_detected": "🔍 **Language Auto-Detected!** 🔍\n\nI noticed your Telegram is set to {detected_language}, so I'm speaking {detected_language} with you!\n\n🌍 *Want to change?* Use /language anytime\n✨ *All recipes and responses will be in your preferred language*"
+    },
+    "help": {
+      "title": "📜 **GreenGrimoire Spell Book** 📜",
+      "description": "🧙‍♂️ *Moss's Magical Recipe Commands*\n\n🍳 **Recipe Magic:**\n• Send any cooking video link (TikTok, Instagram, YouTube)\n• I'll extract recipes from audio, text overlays, and descriptions\n• Automatically organize in your personal forum\n\n📚 **Grimoire Commands:**\n• /my_recipes - Browse your recipe collection\n• /stats - View your cooking statistics\n• /language - Change language preferences\n• /forum_status - Check your personal forum\n• /setup_help - Get forum setup assistance\n\n🔮 **Advanced Spells:**\n• /rate - Rate and track favorite recipes\n• /scale - Scale recipes for different portions\n• /shopping - Generate smart shopping lists\n\n🌍 **Currently speaking:** {current_language}\n*Change anytime with /language*\n\n*May your recipes be ever flavorful!* 🌿✨"
+    },
+    "language": {
+      "choose": "🌍 **Choose Your Language** 🌍\n\n🗣️ **Current:** {current_language}\n🔄 **Select new language for recipes and interface:**",
+      "changed": "✅ **Language Updated** ✅\n\n{language_flag} **New Language:** {language_name}\n🔄 **Recipe extraction will now use this language**\n🌿 **Interface updated for future interactions**\n📱 **Command menu updated to your language**\n\n*Moss adapts to your linguistic preferences!* ✨",
+      "auto_detected": "🔍 **Language Auto-Detected!**\n\nI detected your Telegram language as {detected_language} and set it automatically!\n\n🌍 You can change this anytime with /language",
+      "error": "🐛 Error changing language! Please try again."
+    },
+    "ping": {
+      "response": "🏓 *Pong!* ⚡\n\n🌿 Moss is awake and ready!\n⏱️ Response time: {response_time}ms\n🌍 Speaking: {current_language}"
+    }
+  },
+  "processing": {
+    "analyzing": "🎬 Analyzing your cooking video...",
+    "extracting": "🔍 Extracting recipe from multiple sources...",
+    "transcribing": "🎙️ Transcribing audio narration...",
+    "ocr_reading": "👁️ Reading text overlays and ingredients...",
+    "parsing": "🔮 Using AI magic to structure the recipe...",
+    "translating": "🌐 Translating from {from_language} to {to_language}...",
+    "categorizing": "📂 Organizing into appropriate category...",
+    "saving": "💾 Saving to your personal grimoire...",
+    "complete": "✅ Recipe successfully added to your collection!"
+  },
+  "errors": {
+    "video_download": "❌ Could not download video. Please check the link!",
+    "no_recipe_found": "🤷‍♂️ No recipe detected in this video. Try another one!",
+    "translation_failed": "⚠️ Translation failed, but recipe saved in original language.",
+    "forum_not_setup": "📱 Your personal forum isn't set up yet. Let me help you create one!",
+    "general": "🔧 Sorry, I had a little magical malfunction! Try again? ⚡"
+  },
+  "forums": {
+    "categories": {
+      "salads": "🥗 Forest Salads",
+      "desserts": "🍰 Enchanted Desserts",
+      "soups": "🍲 Mystic Soups",
+      "drinks": "☕ Herbal Brews",
+      "mains": "🍖 Hearty Feasts",
+      "breakfast": "🌅 Dawn Delights"
+    }
+  },
+  "stats": {
+    "title": "📊 **Your Culinary Statistics** 📊",
+    "recipes_saved": "📚 **Total Recipes:** {count}",
+    "favorite_category": "❤️ **Favorite Category:** {category}",
+    "languages_used": "🌍 **Languages:** {languages}",
+    "videos_processed": "🎬 **Videos Processed:** {count}",
+    "success_rate": "✅ **Success Rate:** {rate}%"
+  },
+  "buttons": {
+    "start_setup": "🚀 Start Setup",
+    "continue_setup": "▶️ Continue Setup",
+    "change_language": "🌍 Change Language",
+    "need_help": "💬 Need Help?",
+    "done": "✅ Done!",
+    "cancel": "❌ Cancel"
+  }
+}

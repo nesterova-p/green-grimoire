@@ -1,81 +1,78 @@
 const { updateUserLanguage } = require('../database/userService');
-
-const languages = {
-    'lang_en': { code: 'en', name: 'English', flag: '🇬🇧' },
-    'lang_pl': { code: 'pl', name: 'Polski', flag: '🇵🇱' },
-    'lang_uk': { code: 'uk', name: 'Українська', flag: '🇺🇦' },
-    'lang_de': { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-};
-
-const getLanguageName = (code) => {
-    const names = {
-        'en': '🇬🇧 English',
-        'pl': '🇵🇱 Polski',
-        'uk': '🇺🇦 Українська',
-        'de': '🇩🇪 Deutsch',
-        'fr': '🇫🇷 Français'
-    };
-    return names[code] || '🇬🇧 English';
-};
+const localizationService = require('../services/localizationService');
 
 const languageCommand = async (ctx) => {
-    const languageButtons = {
-        reply_markup: {
-            inline_keyboard: [
-                [
-                    { text: '🇬🇧 English', callback_data: 'lang_en' },
-                    { text: '🇵🇱 Polski', callback_data: 'lang_pl' }
-                ],
-                [
-                    { text: '🇺🇦 Українська', callback_data: 'lang_uk' },
-                ],
-                [
-                    { text: '🇩🇪 Deutsch', callback_data: 'lang_de' },
-                    { text: '🇫🇷 Français', callback_data: 'lang_fr' }
-                ]
-            ]
+    try {
+        const supportedLanguages = localizationService.getSupportedLanguages();
+        const languageButtons = [];
+        for (let i = 0; i < supportedLanguages.length; i += 2) {
+            const row = [];
+
+            const lang1 = supportedLanguages[i];
+            row.push({
+                text: `${lang1.flag} ${lang1.nativeName}`,
+                callback_data: `set_lang_${lang1.code}`
+            });
+
+            if (i + 1 < supportedLanguages.length) {
+                const lang2 = supportedLanguages[i + 1];
+                row.push({
+                    text: `${lang2.flag} ${lang2.nativeName}`,
+                    callback_data: `set_lang_${lang2.code}`
+                });
+            }
+
+            languageButtons.push(row);
         }
-    };
 
-    await ctx.reply(
-        `🌍 **Choose Your Language** 🌍
+        const currentLanguageInfo = localizationService.getLanguageInfo(ctx.dbUser.preferred_language);
 
-🗣️ **Current:** ${getLanguageName(ctx.dbUser.preferred_language)}
-🔄 **Select new language for recipes and interface:**`,
-        {
+        const message = localizationService.botMessage(ctx, 'commands.language.choose', {
+            current_language: currentLanguageInfo
+        });
+
+        await ctx.reply(message, {
             parse_mode: 'Markdown',
-            ...languageButtons
-        }
-    );
+            reply_markup: {
+                inline_keyboard: languageButtons
+            }
+        });
+
+    } catch (error) {
+        console.error('Language command error:', error);
+        const errorMessage = localizationService.botMessage(ctx, 'commands.language.error');
+        await ctx.reply(errorMessage);
+    }
 };
 
 const setupLanguageHandlers = (bot) => {
-    Object.keys(languages).forEach(langKey => {
-        bot.action(langKey, async (ctx) => {
-            try {
-                const lang = languages[langKey];
-                await ctx.answerCbQuery(`${lang.flag} Language changed to ${lang.name}!`);
-                await updateUserLanguage(ctx.dbUser.id, lang.code);
-                ctx.dbUser.preferred_language = lang.code;
-                await updateUserCommandMenu(ctx, lang.code, bot);
+    bot.action(/^set_lang_(.+)$/, async (ctx) => {
+        try {
+            const languageCode = ctx.match[1];
 
-                await ctx.editMessageText(
-                    `✅ **Language Updated** ✅
-
-${lang.flag} **New Language:** ${lang.name}
-🔄 **Recipe extraction will now use this language**
-🌿 **Interface updated for future interactions**
-📱 **Command menu updated to your language**
-
-*Moss adapts to your linguistic preferences!* ✨`,
-                    { parse_mode: 'Markdown' }
-                );
-
-            } catch (error) {
-                console.error('Language change error:', error);
-                await ctx.reply('🐛 Error changing language! Please try again.');
+            if (!localizationService.isLanguageSupported(languageCode)) {
+                await ctx.answerCbQuery('Language not supported');
+                return;
             }
-        });
+
+            const languageDetails = localizationService.getLanguageDetails(languageCode);
+
+            await ctx.answerCbQuery(`${languageDetails.flag} Language changed to ${languageDetails.nativeName}!`);
+            await updateUserLanguage(ctx.dbUser.id, languageCode);
+            ctx.dbUser.preferred_language = languageCode;
+            await updateUserCommandMenu(ctx, languageCode, bot);
+
+            const confirmationMessage = localizationService.getMessage('commands.language.changed', languageCode, {
+                language_flag: languageDetails.flag,
+                language_name: languageDetails.nativeName
+            });
+
+            await ctx.editMessageText(confirmationMessage, { parse_mode: 'Markdown' });
+
+        } catch (error) {
+            console.error('Language change error:', error);
+            await ctx.answerCbQuery('Error changing language');
+        }
     });
 };
 
@@ -88,6 +85,9 @@ const updateUserCommandMenu = async (ctx, languageCode, botInstance) => {
                 { command: 'forum_status', description: '📱 Check personal forum status' },
                 { command: 'reset_forum', description: '🗑️ Reset forum setup' },
                 { command: 'stats', description: '📊 View your cooking statistics' },
+                { command: 'rate', description: '⭐ Rate your recipes and track favorites' },
+                { command: 'scale', description: '⚖️ Scale recipes for different portions' },
+                { command: 'shopping', description: '🛒 Generate smart shopping lists' },
                 { command: 'language', description: '🌍 Change language preferences' },
                 { command: 'setup_help', description: '🆘 Get forum setup help' },
                 { command: 'help', description: '❓ Get help and instructions' },
@@ -99,6 +99,9 @@ const updateUserCommandMenu = async (ctx, languageCode, botInstance) => {
                 { command: 'forum_status', description: '📱 Sprawdź status forum' },
                 { command: 'reset_forum', description: '🗑️ Resetuj forum' },
                 { command: 'stats', description: '📊 Zobacz statystyki gotowania' },
+                { command: 'rate', description: '⭐ Oceń przepisy i śledź ulubione' },
+                { command: 'scale', description: '⚖️ Skaluj przepisy dla różnych porcji' },
+                { command: 'shopping', description: '🛒 Generuj inteligentne listy zakupów' },
                 { command: 'language', description: '🌍 Zmień język' },
                 { command: 'setup_help', description: '🆘 Pomoc konfiguracji' },
                 { command: 'help', description: '❓ Uzyskaj pomoc' },
@@ -110,11 +113,28 @@ const updateUserCommandMenu = async (ctx, languageCode, botInstance) => {
                 { command: 'forum_status', description: '📱 Перевірити статус форуму' },
                 { command: 'reset_forum', description: '🗑️ Скинути форум' },
                 { command: 'stats', description: '📊 Переглянути статистику рецептів' },
+                { command: 'rate', description: '⭐ Оцінити рецепти та відстежувати улюблені' },
+                { command: 'scale', description: '⚖️ Масштабувати рецепти для різних порцій' },
+                { command: 'shopping', description: '🛒 Створити розумні списки покупок' },
                 { command: 'language', description: '🌍 Змінити мовні налаштування' },
                 { command: 'setup_help', description: '🆘 Допомога налаштування' },
-                { command: 'help', description: '❓ Отримати допомогу та інструкції' },
+                { command: 'help', description: '❓ Отримати допомогу' },
                 { command: 'ping', description: '🏓 Перевірити відгукування бота' }
             ],
+            'de': [
+                { command: 'start', description: '🌿 Willkommen bei GreenGrimoire!' },
+                { command: 'my_recipes', description: '📚 Rezeptsammlung anzeigen' },
+                { command: 'forum_status', description: '📱 Forum-Status prüfen' },
+                { command: 'reset_forum', description: '🗑️ Forum zurücksetzen' },
+                { command: 'stats', description: '📊 Koch-Statistiken anzeigen' },
+                { command: 'rate', description: '⭐ Rezepte bewerten und Favoriten verfolgen' },
+                { command: 'scale', description: '⚖️ Rezepte für verschiedene Portionen skalieren' },
+                { command: 'shopping', description: '🛒 Intelligente Einkaufslisten erstellen' },
+                { command: 'language', description: '🌍 Spracheinstellungen ändern' },
+                { command: 'setup_help', description: '🆘 Setup-Hilfe erhalten' },
+                { command: 'help', description: '❓ Hilfe und Anweisungen erhalten' },
+                { command: 'ping', description: '🏓 Bot-Reaktionsfähigkeit testen' }
+            ]
         };
 
         const commands = commandSets[languageCode] || commandSets['en'];
@@ -122,8 +142,6 @@ const updateUserCommandMenu = async (ctx, languageCode, botInstance) => {
         await botInstance.telegram.setMyCommands(commands, {
             scope: { type: 'chat', chat_id: ctx.chat.id }
         });
-
-        await botInstance.telegram.setMyCommands(commands);
 
         // Set menu button
         await botInstance.telegram.setChatMenuButton({
@@ -143,6 +161,5 @@ const updateUserCommandMenu = async (ctx, languageCode, botInstance) => {
 module.exports = {
     languageCommand,
     setupLanguageHandlers,
-    getLanguageName,
     updateUserCommandMenu
 };

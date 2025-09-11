@@ -1,0 +1,67 @@
+{
+  "commands": {
+    "start": {
+      "welcome": "🌿✨ *Witaj, {username}!* ✨🌿\n\n*Moss, Zielony Strażnik budzi się z pradawnego grimoire...*\n\n🍄 Jestem strażnikiem tego zaczarowanego tomu przepisów! W tych kartach kryją się kulinarne sekrety niezliczonych krain i kuchni.\n\n🔮 *Obecne magiczne umiejętności:*\n- Rozmowy z innymi kucharzami\n- Wydobywanie przepisów z filmów kulinarnych\n- Organizowanie przepisów w kolekcji\n\n🌍 *Magia Językowa:* Automatycznie dostosowałem się do twojego języka! Użyj /language aby zmienić w dowolnym momencie.\n\n*Wyślij /help aby zobaczyć księgę zaklęć, drogi kucharzu!* 📜⚡",
+      "welcome_back": "🌿✨ *Witaj z powrotem, {username}!* ✨🌿\n\n*Moss rozpoznaje towarzysza kulinarnych przygód!*\n\n📚 **Twoje Osobiste Grimoire Przepisów Jest Gotowe!**\n\n📱 **Twoje Forum:** [{forum_name}]({forum_link})\n📂 **Kategorie:** {categories_count} zorganizowanych tematów przepisów\n📝 **Przepisy:** {recipes_count} kulinarnych skarbów zapisanych\n\n🍳 **Gotowy do gotowania?** Wyślij mi link do filmu kulinarnego, a ja:\n• 🔮 Wydobędę przepis używając starożytnej magii AI\n• 📂 Zorganizuję go w odpowiednim temacie kategorii\n• 🎬 Zachowam oryginalny film do referencji\n• ✨ Uczynię go przeszukiwalnym w twojej osobistej kolekcji\n\n🌍 *Mówiąc twoim językiem:* {current_language}\n*Zmień w dowolnym momencie za pomocą /language*\n\n🌱 *Twoja kulinarna podróż trwa! Wyślij mi film kulinarny żeby zacząć...*\n\n*Użyj /help dla więcej magicznych komend!* 📜⚡",
+      "setup_in_progress": "🔄 **Konfiguracja W Toku** 🔄\n\nCześć {username}! Widzę, że rozpocząłeś konfigurację swojego osobistego forum przepisów, ale jej nie ukończyłeś.\n\n🎯 **Aby zakończyć konfigurację:**\n1. Idź do swojego forum: \"{forum_name}\"\n2. Upewnij się, że jestem dodany jako admin z uprawnieniem \"Zarządzaj Tematami\"\n3. Wyślij swój kod konfiguracyjny na forum\n\n🆘 **Potrzebujesz pomocy?** Wyślij /setup_help dla szczegółowych instrukcji\n🔄 **Zacząć od nowa?** Mogę poprowadzić cię przez świeżą konfigurację!\n\n*Sprawmy, że organizacja twoich przepisów będzie działać idealnie!* 🌿✨",
+      "language_auto_detected": "🔍 **Język Automatycznie Wykryty!** 🔍\n\nZauważyłem, że twój Telegram jest ustawiony na {detected_language}, więc rozmawiam z tobą po {detected_language}!\n\n🌍 *Chcesz zmienić?* Użyj /language w dowolnym momencie\n✨ *Wszystkie przepisy i odpowiedzi będą w twoim preferowanym języku*"
+    },
+    "help": {
+      "title": "📜 **Księga Zaklęć GreenGrimoire** 📜",
+      "description": "🧙‍♂️ *Magiczne Komendy Przepisów Mossa*\n\n🍳 **Magia Przepisów:**\n• Wyślij link do filmu kulinarnego (TikTok, Instagram, YouTube)\n• Wydobędę przepisy z audio, nakładek tekstowych i opisów\n• Automatycznie zorganizuję na twoim osobistym forum\n\n📚 **Komendy Grimoire:**\n• /my_recipes - Przeglądaj swoją kolekcję przepisów\n• /stats - Zobacz swoje statystyki kulinarne\n• /language - Zmień preferencje językowe\n• /forum_status - Sprawdź swoje osobiste forum\n• /setup_help - Uzyskaj pomoc z konfiguracją forum\n\n🔮 **Zaawansowane Zaklęcia:**\n• /rate - Oceń i śledź ulubione przepisy\n• /scale - Skaluj przepisy dla różnych porcji\n• /shopping - Generuj inteligentne listy zakupów\n\n🌍 **Obecnie mówię:** {current_language}\n*Zmień w dowolnym momencie za pomocą /language*\n\n*Niech twoje przepisy będą zawsze smakowite!* 🌿✨"
+    },
+    "language": {
+      "choose": "🌍 **Wybierz Swój Język** 🌍\n\n🗣️ **Obecny:** {current_language}\n🔄 **Wybierz nowy język dla przepisów i interfejsu:**",
+      "changed": "✅ **Język Zaktualizowany** ✅\n\n{language_flag} **Nowy Język:** {language_name}\n🔄 **Wydobywanie przepisów będzie teraz używać tego języka**\n🌿 **Interfejs zaktualizowany dla przyszłych interakcji**\n📱 **Menu komend zaktualizowane do twojego języka**\n\n*Moss dostosowuje się do twoich preferencji językowych!* ✨",
+      "auto_detected": "🔍 **Język Automatycznie Wykryty!**\n\nWykryłem twój język Telegram jako {detected_language} i ustawiłem go automatycznie!\n\n🌍 Możesz to zmienić w dowolnym momencie za pomocą /language",
+      "error": "🐛 Błąd zmiany języka! Spróbuj ponownie."
+    },
+    "ping": {
+      "response": "🏓 *Pong!* ⚡\n\n🌿 Moss jest czujny i gotowy!\n⏱️ Czas odpowiedzi: {response_time}ms\n🌍 Mówię: {current_language}"
+    }
+  },
+  "processing": {
+    "analyzing": "🎬 Analizuję twój film kulinarny...",
+    "extracting": "🔍 Wydobywam przepis z wielu źródeł...",
+    "transcribing": "🎙️ Transkrybuję narrację audio...",
+    "ocr_reading": "👁️ Czytam nakładki tekstowe i składniki...",
+    "parsing": "🔮 Używam magii AI do strukturyzacji przepisu...",
+    "translating": "🌐 Tłumaczę z {from_language} na {to_language}...",
+    "categorizing": "📂 Organizuję w odpowiedniej kategorii...",
+    "saving": "💾 Zapisuję w twoim osobistym grimoire...",
+    "complete": "✅ Przepis pomyślnie dodany do twojej kolekcji!"
+  },
+  "errors": {
+    "video_download": "❌ Nie mogłem pobrać filmu. Sprawdź link!",
+    "no_recipe_found": "🤷‍♂️ Nie wykryto przepisu w tym filmie. Spróbuj innego!",
+    "translation_failed": "⚠️ Tłumaczenie nie powiodło się, ale przepis zapisany w oryginalnym języku.",
+    "forum_not_setup": "📱 Twoje osobiste forum nie jest jeszcze skonfigurowane. Pomogę ci je utworzyć!",
+    "general": "🔧 Przepraszam, miałem mały magiczny błąd! Spróbuj ponownie? ⚡"
+  },
+  "forums": {
+    "categories": {
+      "salads": "🥗 Leśne Sałatki",
+      "desserts": "🍰 Zaczarowane Desery",
+      "soups": "🍲 Mistyczne Zupy",
+      "drinks": "☕ Ziołowe Napoje",
+      "mains": "🍖 Sycące Uczty",
+      "breakfast": "🌅 Poranki Rozkosze"
+    }
+  },
+  "stats": {
+    "title": "📊 **Twoje Statystyki Kulinarne** 📊",
+    "recipes_saved": "📚 **Wszystkich Przepisów:** {count}",
+    "favorite_category": "❤️ **Ulubiona Kategoria:** {category}",
+    "languages_used": "🌍 **Języki:** {languages}",
+    "videos_processed": "🎬 **Przetworzonych Filmów:** {count}",
+    "success_rate": "✅ **Wskaźnik Sukcesu:** {rate}%"
+  },
+  "buttons": {
+    "start_setup": "🚀 Rozpocznij Konfigurację",
+    "continue_setup": "▶️ Kontynuuj Konfigurację",
+    "change_language": "🌍 Zmień Język",
+    "need_help": "💬 Potrzebuję Pomocy",
+    "done": "✅ Gotowe!",
+    "cancel": "❌ Anuluj"
+  }
+}

@@ -1,12 +1,59 @@
 const PersonalForumService = require('../services/personalForumService');
+let localizationService = null;
+let updateUserLanguage = null;
+
+try {
+    localizationService = require('../services/localizationService');
+    const { updateUserLanguage: updateLang } = require('../database/userService');
+    updateUserLanguage = updateLang;
+    console.log('✅ Localization service loaded successfully');
+} catch (error) {
+    console.log('⚠️ Localization service not found, using basic messages');
+}
 
 const startCommand = async (ctx) => {
     const username = ctx.from.first_name || ctx.from.username;
+    let languageChanged = false;
 
     try {
+        if (localizationService && updateUserLanguage) {
+            try {
+                if (!ctx.dbUser.preferred_language || ctx.dbUser.preferred_language === 'en') {
+                    const detectedLanguage = localizationService.detectTelegramLanguage(ctx);
+
+                    if (detectedLanguage !== 'en' && detectedLanguage !== ctx.dbUser.preferred_language) {
+                        await updateUserLanguage(ctx.dbUser.id, detectedLanguage);
+                        ctx.dbUser.preferred_language = detectedLanguage;
+                        languageChanged = true;
+
+                        const autoDetectedMessage = localizationService.getMessage(
+                            'commands.start.language_auto_detected',
+                            detectedLanguage,
+                            {
+                                detected_language: localizationService.getLanguageInfo(detectedLanguage)
+                            }
+                        );
+
+                        await ctx.reply(autoDetectedMessage, { parse_mode: 'Markdown' });
+                    }
+                }
+            } catch (langError) {
+                console.log('⚠️ Language auto-detection failed, continuing with basic setup');
+            }
+        }
+
         const personalForumService = global.personalForumService;
         if (!personalForumService) {
-            await ctx.reply(`🌿✨ *Greetings, ${username}!* ✨🌿
+            let welcomeMessage;
+
+            if (localizationService) {
+                welcomeMessage = localizationService.getMessage(
+                    'commands.start.welcome',
+                    ctx.dbUser?.preferred_language || 'en',
+                    { username: username }
+                );
+            } else {
+                welcomeMessage = `🌿✨ *Greetings, ${username}!* ✨🌿
 
 *Moss the Green Keeper awakens from the ancient grimoire...*
 
@@ -17,8 +64,10 @@ const startCommand = async (ctx) => {
 - Extracting recipes from cooking videos
 - Organizing recipes in your collection
 
-*Send /help to view my spell book, dear cook!* 📜⚡`,
-                { parse_mode: 'Markdown' });
+*Send /help to view my spell book, dear cook!* 📜⚡`;
+            }
+
+            await ctx.reply(welcomeMessage, { parse_mode: 'Markdown' });
             return;
         }
 
@@ -29,7 +78,7 @@ const startCommand = async (ctx) => {
                 `https://t.me/c/${Math.abs(userForum.forum_chat_id).toString().slice(4)}/1` :
                 'your personal forum';
 
-            const welcomeBackMessage = `🌿✨ *Welcome back, ${username}!* ✨🌿
+            let welcomeBackMessage = `🌿✨ *Welcome back, ${username}!* ✨🌿
 
 *Moss recognizes a fellow culinary adventurer!*
 
@@ -49,10 +98,32 @@ const startCommand = async (ctx) => {
 
 *Use /help for more magical commands!* 📜⚡`;
 
-            await ctx.reply(welcomeBackMessage, { parse_mode: 'Markdown' });
+            if (localizationService && ctx.dbUser.preferred_language) {
+                const currentLanguageInfo = localizationService.getLanguageInfo(ctx.dbUser.preferred_language);
+                welcomeBackMessage += `\n\n🌍 *Speaking your language:* ${currentLanguageInfo}\n*Change anytime with /language*`;
+            }
+
+            const replyMarkup = {
+                parse_mode: 'Markdown'
+            };
+
+            if (localizationService) {
+                replyMarkup.reply_markup = {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: "🌍 Change Language",
+                                callback_data: 'open_language_menu'
+                            }
+                        ]
+                    ]
+                };
+            }
+
+            await ctx.reply(welcomeBackMessage, replyMarkup);
 
         } else if (userForum && !userForum.setup_completed) {
-            await ctx.reply(`🔄 **Setup In Progress** 🔄
+            let setupMessage = `🔄 **Setup In Progress** 🔄
 
 Hi ${username}! I see you started setting up your personal recipe forum but didn't complete it.
 
@@ -64,8 +135,30 @@ Hi ${username}! I see you started setting up your personal recipe forum but didn
 🆘 **Need help?** Send /setup_help for detailed instructions
 🔄 **Start over?** I can guide you through a fresh setup!
 
-*Let's get your recipe organization working perfectly!* 🌿✨`,
-                { parse_mode: 'Markdown' });
+*Let's get your recipe organization working perfectly!* 🌿✨`;
+
+            const replyMarkup = {
+                parse_mode: 'Markdown'
+            };
+
+            if (localizationService) {
+                replyMarkup.reply_markup = {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: "▶️ Continue Setup",
+                                callback_data: 'continue_setup'
+                            },
+                            {
+                                text: "🌍 Change Language",
+                                callback_data: 'open_language_menu'
+                            }
+                        ]
+                    ]
+                };
+            }
+
+            await ctx.reply(setupMessage, replyMarkup);
 
         } else {
             await personalForumService.initiatePersonalForumSetup(ctx);
