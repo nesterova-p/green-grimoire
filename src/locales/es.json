@@ -1,0 +1,138 @@
+{
+  "commands": {
+    "start": {
+      "welcome": "🌿✨ *¡Saludos, {username}!* ✨🌿\n\n*Moss el Guardián Verde despierta del grimorio antiguo...*\n\n🍄 ¡Soy el guardián de este tomo de recetas encantado! Dentro de estas páginas yacen los secretos culinarios de innumerables reinos y cocinas.\n\n🔮 *Habilidades mágicas actuales:*\n- Conversar con otros cocineros\n- Extraer recetas de videos culinarios\n- Organizar recetas en tu colección\n\n🌍 *Magia Lingüística:* ¡Me adapté automáticamente a tu idioma! Usa /language para cambiarlo en cualquier momento.\n\n*¡Envía /help para ver mi libro de hechizos, querido cocinero!* 📜⚡",
+      "welcome_back": "🌿✨ *¡Bienvenido de vuelta, {username}!* ✨🌿\n\n*¡Moss reconoce a un compañero de aventuras culinarias!*\n\n📚 **¡Tu Grimorio Personal de Recetas Está Listo!**\n\n📱 **Tu Foro:** [{forum_name}]({forum_link})\n📂 **Categorías:** {categories_count} temas de recetas organizados\n📝 **Recetas:** {recipes_count} tesoros culinarios guardados\n\n🍳 **¿Listo para cocinar?** Envíame un enlace de video culinario y yo:\n• 🔮 Extraeré la receta usando magia IA antigua\n• 📂 La organizaré en la categoría apropiada\n• 🎬 Mantendré el video original como referencia\n• ✨ La haré buscable en tu colección personal\n\n🌍 *Hablando tu idioma:* {current_language}\n*Cambia en cualquier momento con /language*\n\n🌱 *¡Tu viaje culinario continúa! Envíame un video culinario para comenzar...*\n\n*¡Usa /help para más comandos mágicos!* 📜⚡",
+      "setup_in_progress": "🔄 **Configuración En Progreso** 🔄\n\n¡Hola {username}! Veo que comenzaste a configurar tu foro personal de recetas pero no lo completaste.\n\n🎯 **Para terminar la configuración:**\n1. Ve a tu foro: \"{forum_name}\"\n2. Asegúrate de que esté agregado como admin con permiso \"Gestionar Temas\"\n3. Envía tu código de configuración en el foro\n\n🆘 **¿Necesitas ayuda?** Envía /setup_help para instrucciones detalladas\n🔄 **¿Empezar de nuevo?** ¡Puedo guiarte a través de una configuración nueva!\n\n*¡Hagamos que tu organización de recetas funcione perfectamente!* 🌿✨",
+      "language_auto_detected": "🔍 **¡Idioma Detectado Automáticamente!** 🔍\n\n¡Noté que tu Telegram está configurado en {detected_language}, así que estoy hablando {detected_language} contigo!\n\n🌍 *¿Quieres cambiar?* Usa /language en cualquier momento\n✨ *Todas las recetas y respuestas estarán en tu idioma preferido*"
+    },
+    "help": {
+      "title": "📜 **Libro de Hechizos GreenGrimoire** 📜",
+      "description": "🧙‍♂️ *Comandos Mágicos de Recetas de Moss*\n\n🍳 **Magia de Recetas:**\n• Envía cualquier enlace de video culinario (TikTok, Instagram, YouTube)\n• Extraeré recetas del audio, superposiciones de texto y descripciones\n• Organización automática en tu foro personal\n\n📚 **Comandos del Grimorio:**\n• /my_recipes - Explora tu colección de recetas\n• /stats - Ver tus estadísticas culinarias\n• /language - Cambiar preferencias de idioma\n• /forum_status - Verificar tu foro personal\n• /setup_help - Obtener ayuda de configuración del foro\n\n🔮 **Hechizos Avanzados:**\n• /rate - Calificar y seguir recetas favoritas\n• /scale - Escalar recetas para diferentes porciones\n• /shopping - Generar listas de compras inteligentes\n\n🌍 **Hablando actualmente:** {current_language}\n*Cambia en cualquier momento con /language*\n\n*¡Que tus recetas sean siempre sabrosas!* 🌿✨"
+    },
+    "language": {
+      "choose": "🌍 **Elige Tu Idioma** 🌍\n\n🗣️ **Actual:** {current_language}\n🔄 **Selecciona nuevo idioma para recetas e interfaz:**",
+      "changed": "✅ **Idioma Actualizado** ✅\n\n{language_flag} **Nuevo Idioma:** {language_name}\n🔄 **La extracción de recetas ahora usará este idioma**\n🌿 **Interfaz actualizada para futuras interacciones**\n📱 **Menú de comandos actualizado a tu idioma**\n\n*¡Moss se adapta a tus preferencias lingüísticas!* ✨",
+      "auto_detected": "🔍 **¡Idioma Detectado Automáticamente!**\n\n¡Detecté tu idioma de Telegram como {detected_language} y lo configuré automáticamente!\n\n🌍 Puedes cambiar esto en cualquier momento con /language",
+      "error": "🐛 ¡Error al cambiar idioma! Por favor intenta de nuevo."
+    },
+    "ping": {
+      "response": "🏓 *¡Pong!* ⚡\n\n🌿 ¡Moss está despierto y listo!\n⏱️ Tiempo de respuesta: {response_time}ms\n🌍 Hablando: {current_language}"
+    },
+    "my_recipes": {
+      "title": "📚 **Tu Colección de Recetas** 📚",
+      "empty": "📖 **¡Tu colección aún está vacía!** 📖\n\n🎬 ¡Envíame videos culinarios para recopilar tus primeras recetas!\n🌿 *Cada video se convertirá en una receta mágica en tu colección*",
+      "count": "📊 **{count} recetas en tu colección**"
+    },
+    "stats": {
+      "title": "📊 **Tus Estadísticas Culinarias** 📊",
+      "recipes_saved": "📚 **Recetas Guardadas:** {count}",
+      "favorite_category": "❤️ **Categoría Favorita:** {category}",
+      "languages_used": "🌍 **Idiomas Usados:** {languages}",
+      "videos_processed": "🎬 **Videos Procesados:** {count}",
+      "success_rate": "✅ **Tasa de Éxito:** {rate}%",
+      "total_ratings": "⭐ **Calificaciones Dadas:** {count}",
+      "average_rating": "🌟 **Calificación Promedio:** {rating}/5"
+    },
+    "forum_status": {
+      "title": "📱 **Estado del Foro** 📱",
+      "setup_complete": "✅ **¡Configuración Completa!**\n\n📱 **Tu Foro:** [{forum_name}]({forum_link})\n📊 **Estado:** Activo y listo",
+      "setup_needed": "🔄 **Configuración Requerida**\n\nTu foro personal aún no está configurado."
+    },
+    "setup_help": {
+      "title": "🆘 **Ayuda Configuración Foro** 🆘",
+      "description": "**Guía Paso a Paso:**\n\n1️⃣ Crear un nuevo canal\n2️⃣ Agregarme como administrador\n3️⃣ Darme permiso \"Gestionar Temas\"\n4️⃣ Enviar tu código de configuración"
+    },
+    "rate": {
+      "title": "⭐ **Centro de Calificación de Recetas** ⭐",
+      "no_recipes": "📖 ¡No se encontraron recetas para calificar! Envía videos culinarios para comenzar tu colección.",
+      "select_recipe": "🎯 **Elige una receta para calificar:**"
+    },
+    "scale": {
+      "title": "⚖️ **Escalado de Recetas** ⚖️",
+      "no_recipes": "📖 ¡No se encontraron recetas para escalar! Envía videos culinarios para comenzar tu colección.",
+      "select_recipe": "🎯 **Elige una receta para escalar:**"
+    },
+    "shopping": {
+      "title": "🛒 **Lista de Compras Inteligente** 🛒",
+      "no_recipes": "📖 ¡No se encontraron recetas para lista de compras! Envía videos culinarios para comenzar tu colección.",
+      "select_recipes": "🎯 **Elige recetas para tu lista de compras:**"
+    }
+  },
+  "processing": {
+    "analyzing": "🎬 Analizando tu video culinario...",
+    "extracting": "🔍 Extrayendo receta de múltiples fuentes...",
+    "transcribing": "🎙️ Transcribiendo narración de audio...",
+    "ocr_reading": "👁️ Leyendo superposiciones de texto e ingredientes...",
+    "parsing": "🔮 Usando magia IA para estructurar la receta...",
+    "translating": "🌐 Traduciendo de {from_language} a {to_language}...",
+    "categorizing": "📂 Organizando en categoría apropiada...",
+    "saving": "💾 Guardando en tu grimorio personal...",
+    "complete": "✅ ¡Receta agregada exitosamente a tu colección!",
+    "nutrition_analyzing": "🔬 Analizando valores nutricionales...",
+    "shopping_generating": "🛒 Generando lista de compras inteligente..."
+  },
+  "errors": {
+    "video_download": "❌ No se pudo descargar el video. ¡Por favor verifica el enlace!",
+    "no_recipe_found": "🤷‍♂️ No se detectó receta en este video. ¡Prueba con otro!",
+    "translation_failed": "⚠️ Traducción falló, pero receta guardada en idioma original.",
+    "forum_not_setup": "📱 Tu foro personal aún no está configurado. ¡Déjame ayudarte a crear uno!",
+    "general": "🔧 ¡Perdón, tuve un pequeño mal funcionamiento mágico! ¿Intentar de nuevo? ⚡",
+    "recipe_not_found": "❌ ¡Receta no encontrada o no accesible!",
+    "rating_failed": "❌ ¡Calificación falló! Por favor intenta de nuevo.",
+    "scaling_failed": "❌ ¡Escalado falló! Por favor intenta de nuevo.",
+    "shopping_failed": "❌ ¡No se pudo crear la lista de compras! Por favor intenta de nuevo."
+  },
+  "forums": {
+    "categories": {
+      "salads": "🥗 Ensaladas del Bosque",
+      "desserts": "🍰 Postres Encantados",
+      "soups": "🍲 Sopas Místicas",
+      "drinks": "☕ Bebidas Herbales",
+      "mains": "🍖 Banquetes Abundantes",
+      "breakfast": "🌅 Delicias del Amanecer",
+      "snacks": "🥨 Bocadillos Mágicos",
+      "vegetarian": "🌱 Platos Vegetarianos",
+      "vegan": "🌿 Creaciones Veganas"
+    }
+  },
+  "buttons": {
+    "start_setup": "🚀 Iniciar Configuración",
+    "continue_setup": "▶️ Continuar Configuración",
+    "change_language": "🌍 Cambiar Idioma",
+    "need_help": "💬 Necesito Ayuda",
+    "done": "✅ ¡Listo!",
+    "cancel": "❌ Cancelar",
+    "rate_recipe": "⭐ Calificar",
+    "scale_recipe": "⚖️ Escalar",
+    "view_recipe": "📖 Ver Receta",
+    "add_to_shopping": "🛒 Añadir a Compras",
+    "back": "⬅️ Atrás",
+    "next": "➡️ Siguiente",
+    "confirm": "✅ Confirmar"
+  },
+  "nutrition": {
+    "title": "📊 **Análisis Nutricional** 📊",
+    "analyzing": "🔬 Analizando valores nutricionales para \"{recipe_title}\"...",
+    "complete": "✅ **¡Análisis Nutricional Completo!**",
+    "already_analyzed": "✅ ¡Esta receta ya tiene análisis nutricional!",
+    "failed": "❌ ¡Análisis nutricional falló!"
+  },
+  "rating": {
+    "select_rating": "⭐ **Elige tu calificación:**",
+    "rating_saved": "✅ ¡Tu calificación ha sido guardada!",
+    "rating_updated": "🔄 ¡Calificación actualizada!",
+    "cancel": "❌ Calificación cancelada"
+  },
+  "scaling": {
+    "select_factor": "⚖️ **Elige tu factor de escalado:**",
+    "custom_factor": "🔢 Ingresa un factor personalizado:",
+    "scaled_successfully": "✅ ¡Receta escalada exitosamente!",
+    "scaling_failed": "❌ ¡Escalado falló!"
+  },
+  "shopping": {
+    "list_generated": "✅ **¡Lista de Compras Creada!**",
+    "no_ingredients": "❌ ¡No se encontraron ingredientes para agregar!",
+    "select_recipes": "🎯 **Elige recetas para tu lista de compras:**"
+  }
+}

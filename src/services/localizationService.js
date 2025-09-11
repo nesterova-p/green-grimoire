@@ -4,7 +4,7 @@ const fs = require('fs');
 class LocalizationService {
     constructor() {
         this.messages = new Map();
-        this.supportedLanguages = ['en', 'pl', 'uk', 'de', 'fr', 'es', 'it', 'ru'];
+        this.supportedLanguages = ['en', 'uk', 'pl', 'ru'];
         this.defaultLanguage = 'en';
         this.isInitialized = false;
     }
@@ -65,21 +65,16 @@ class LocalizationService {
                     ping: {
                         response: "🏓 *Pong!* ⚡\n\n🌿 Moss is awake and ready!\n⏱️ Response time: {response_time}ms\n🌍 Speaking: {current_language}"
                     }
-                }
-            },
-            'pl': {
-                commands: {
-                    start: {
-                        welcome: "🌿✨ *Witaj, {username}!* ✨🌿\n\n*Moss, Zielony Strażnik budzi się z pradawnego grimoire...*\n\n🍄 Jestem strażnikiem tego zaczarowanego tomu przepisów! W tych kartach kryją się kulinarne sekrety niezliczonych krain i kuchni.\n\n🔮 *Obecne magiczne umiejętności:*\n- Rozmowy z innymi kucharzami\n- Wydobywanie przepisów z filmów kulinarnych\n- Organizowanie przepisów w kolekcji\n\n🌍 *Magia Językowa:* Automatycznie dostosowałem się do twojego języka! Użyj /language aby zmienić w dowolnym momencie.\n\n*Wyślij /help aby zobaczyć księgę zaklęć, drogi kucharzu!* 📜⚡",
-                        language_auto_detected: "🔍 **Język Automatycznie Wykryty!**\n\nZauważyłem, że twój Telegram jest ustawiony na {detected_language}, więc rozmawiam z tobą po {detected_language}!\n\n🌍 *Chcesz zmienić?* Użyj /language w dowolnym momencie\n✨ *Wszystkie przepisy i odpowiedzi będą w twoim preferowanym języku*"
-                    },
-                    language: {
-                        choose: "🌍 **Wybierz Swój Język** 🌍\n\n🗣️ **Obecny:** {current_language}\n🔄 **Wybierz nowy język dla przepisów i interfejsu:**",
-                        changed: "✅ **Język Zaktualizowany** ✅\n\n{language_flag} **Nowy Język:** {language_name}\n🔄 **Wydobywanie przepisów będzie teraz używać tego języka**\n🌿 **Interfejs zaktualizowany dla przyszłych interakcji**\n📱 **Menu komend zaktualizowane do twojego języka**\n\n*Moss dostosowuje się do twoich preferencji językowych!* ✨"
-                    },
-                    ping: {
-                        response: "🏓 *Pong!* ⚡\n\n🌿 Moss jest czujny i gotowy!\n⏱️ Czas odpowiedzi: {response_time}ms\n🌍 Mówię: {current_language}"
-                    }
+                },
+                errors: {
+                    general: "🔧 Sorry, I had a little magical malfunction! Try again? ⚡"
+                },
+                buttons: {
+                    change_language: "🌍 Change Language",
+                    start_setup: "🚀 Start Setup",
+                    need_help: "💬 Need Help?",
+                    done: "✅ Done!",
+                    cancel: "❌ Cancel"
                 }
             },
             'uk': {
@@ -95,6 +90,66 @@ class LocalizationService {
                     ping: {
                         response: "🏓 *Понг!* ⚡\n\n🌿 Мос пильний і готовий!\n⏱️ Час відповіді: {response_time}мс\n🌍 Розмовляю: {current_language}"
                     }
+                },
+                errors: {
+                    general: "🔧 Вибачте, у мене була невелика магічна несправність! Спробуйте знову? ⚡"
+                },
+                buttons: {
+                    change_language: "🌍 Змінити Мову",
+                    start_setup: "🚀 Почати Налаштування",
+                    need_help: "💬 Потрібна Допомога",
+                    done: "✅ Готово!",
+                    cancel: "❌ Скасувати"
+                }
+            },
+            'pl': {
+                commands: {
+                    start: {
+                        welcome: "🌿✨ *Witaj, {username}!* ✨🌿\n\n*Moss, Zielony Strażnik budzi się z pradawnego grimoire...*\n\n🍄 Jestem strażnikiem tego zaczarowanego tomu przepisów! W tych kartach kryją się kulinarne sekrety niezliczonych krain i kuchni.\n\n🔮 *Obecne magiczne umiejętności:*\n- Rozmowy z innymi kucharzami\n- Wydobywanie przepisów z filmów kulinarnych\n- Organizowanie przepisów w kolekcji\n\n🌍 *Magia Językowa:* Automatycznie dostosowałem się do twojego języka! Użyj /language aby zmienić w dowolnym momencie.\n\n*Wyślij /help aby zobaczyć księgę zaklęć, drogi kucharzu!* 📜⚡",
+                        language_auto_detected: "🔍 **Język Automatycznie Wykryty!**\n\nZauważyłem, że twój Telegram jest ustawiony na {detected_language}, więc rozmawiam z tobą po {detected_language}!\n\n🌍 *Chcesz zmienić?* Użyj /language w dowolnym momencie\n✨ *Wszystkie przepisy i odpowiedzi będą w twoim preferowanym języku*"
+                    },
+                    language: {
+                        choose: "🌍 **Wybierz Swój Język** 🌍\n\n🗣️ **Obecny:** {current_language}\n🔄 **Wybierz nowy język dla przepisów i interfejsu:**",
+                        changed: "✅ **Język Zaktualizowany** ✅\n\n{language_flag} **Nowy Język:** {language_name}\n🔄 **Wydobywanie przepisów będzie teraz używać tego języka**\n🌿 **Interfejs zaktualizowany dla przyszłych interakcji**\n📱 **Menu komend zaktualizowane do twojego języka**\n\n*Moss dostosowuje się do twoich preferencji językowych!* ✨"
+                    },
+                    ping: {
+                        response: "🏓 *Pong!* ⚡\n\n🌿 Moss jest czujny i gotowy!\n⏱️ Czas odpowiedzi: {response_time}ms\n🌍 Mówię: {current_language}"
+                    }
+                },
+                errors: {
+                    general: "🔧 Przepraszam, miałem mały magiczny błąd! Spróbuj ponownie? ⚡"
+                },
+                buttons: {
+                    change_language: "🌍 Zmień Język",
+                    start_setup: "🚀 Rozpocznij Konfigurację",
+                    need_help: "💬 Potrzebuję Pomocy",
+                    done: "✅ Gotowe!",
+                    cancel: "❌ Anuluj"
+                }
+            },
+            'ru': {
+                commands: {
+                    start: {
+                        welcome: "🌿✨ *Приветствую, {username}!* ✨🌿\n\n*Мосс Зелёный Хранитель пробуждается из древнего гримуара...*\n\n🍄 Я хранитель этого зачарованного тома рецептов! На этих страницах сокрыты кулинарные секреты бесчисленных королевств и кухонь.\n\n🔮 *Текущие магические способности:*\n- Общение с другими поварами\n- Извлечение рецептов из кулинарных видео\n- Организация рецептов в вашей коллекции\n\n🌍 *Языковая Магия:* Я автоматически адаптировался к вашему языку! Используйте /language чтобы изменить его в любое время.\n\n*Отправьте /help чтобы посмотреть мою книгу заклинаний, дорогой повар!* 📜⚡",
+                        language_auto_detected: "🔍 **Язык Автоматически Определён!**\n\nЯ заметил, что ваш Telegram настроен на {detected_language}, поэтому я говорю на {detected_language} с вами!\n\n🌍 *Хотите изменить?* Используйте /language в любое время\n✨ *Все рецепты и ответы будут на вашем предпочитаемом языке*"
+                    },
+                    language: {
+                        choose: "🌍 **Выберите Ваш Язык** 🌍\n\n🗣️ **Текущий:** {current_language}\n🔄 **Выберите новый язык для рецептов и интерфейса:**",
+                        changed: "✅ **Язык Обновлён** ✅\n\n{language_flag} **Новый Язык:** {language_name}\n🔄 **Извлечение рецептов теперь будет использовать этот язык**\n🌿 **Интерфейс обновлён для будущих взаимодействий**\n📱 **Меню команд обновлено на ваш язык**\n\n*Мосс адаптируется к вашим языковым предпочтениям!* ✨"
+                    },
+                    ping: {
+                        response: "🏓 *Понг!* ⚡\n\n🌿 Мосс бодрствует и готов!\n⏱️ Время отклика: {response_time}мс\n🌍 Говорю на: {current_language}"
+                    }
+                },
+                errors: {
+                    general: "🔧 Извините, у меня произошёл небольшой магический сбой! Попробовать снова? ⚡"
+                },
+                buttons: {
+                    change_language: "🌍 Сменить Язык",
+                    start_setup: "🚀 Начать Настройку",
+                    need_help: "💬 Нужна Помощь",
+                    done: "✅ Готово!",
+                    cancel: "❌ Отмена"
                 }
             }
         };
@@ -156,12 +211,8 @@ class LocalizationService {
     getLanguageInfo(languageCode) {
         const languageNames = {
             'en': { name: 'English', nativeName: 'English', flag: '🇬🇧' },
-            'pl': { name: 'Polish', nativeName: 'Polski', flag: '🇵🇱' },
             'uk': { name: 'Ukrainian', nativeName: 'Українська', flag: '🇺🇦' },
-            'de': { name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
-            'fr': { name: 'French', nativeName: 'Français', flag: '🇫🇷' },
-            'es': { name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-            'it': { name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
+            'pl': { name: 'Polish', nativeName: 'Polski', flag: '🇵🇱' },
             'ru': { name: 'Russian', nativeName: 'Русский', flag: '🇷🇺' }
         };
 
@@ -172,12 +223,8 @@ class LocalizationService {
     getLanguageDetails(languageCode) {
         const details = {
             'en': { name: 'English', nativeName: 'English', flag: '🇬🇧' },
-            'pl': { name: 'Polish', nativeName: 'Polski', flag: '🇵🇱' },
             'uk': { name: 'Ukrainian', nativeName: 'Українська', flag: '🇺🇦' },
-            'de': { name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
-            'fr': { name: 'French', nativeName: 'Français', flag: '🇫🇷' },
-            'es': { name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-            'it': { name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
+            'pl': { name: 'Polish', nativeName: 'Polski', flag: '🇵🇱' },
             'ru': { name: 'Russian', nativeName: 'Русский', flag: '🇷🇺' }
         };
 
@@ -199,9 +246,71 @@ class LocalizationService {
         const userLang = ctx.dbUser?.preferred_language || this.defaultLanguage;
         return this.getMessage(messageKey, userLang, interpolations);
     }
+
+    getCommandDescriptions(languageCode) {
+        const commandSets = {
+            'en': [
+                { command: 'start', description: '🌿 Welcome to GreenGrimoire!' },
+                { command: 'my_recipes', description: '📚 View your recipe collection' },
+                { command: 'forum_status', description: '📱 Check personal forum status' },
+                { command: 'reset_forum', description: '🗑️ Reset forum setup' },
+                { command: 'stats', description: '📊 View your cooking statistics' },
+                { command: 'rate', description: '⭐ Rate your recipes and track favorites' },
+                { command: 'scale', description: '⚖️ Scale recipes for different portions' },
+                { command: 'shopping', description: '🛒 Generate smart shopping lists' },
+                { command: 'language', description: '🌍 Change language preferences' },
+                { command: 'setup_help', description: '🆘 Get forum setup help' },
+                { command: 'help', description: '❓ Get help and instructions' },
+                { command: 'ping', description: '🏓 Test bot responsiveness' }
+            ],
+            'uk': [
+                { command: 'start', description: '🌿 Ласкаво просимо до GreenGrimoire!' },
+                { command: 'my_recipes', description: '📚 Переглянути вашу колекцію рецептів' },
+                { command: 'forum_status', description: '📱 Перевірити статус особистого форуму' },
+                { command: 'reset_forum', description: '🗑️ Скинути налаштування форуму' },
+                { command: 'stats', description: '📊 Переглянути вашу кулінарну статистику' },
+                { command: 'rate', description: '⭐ Оцінити рецепти та відстежувати улюблені' },
+                { command: 'scale', description: '⚖️ Масштабувати рецепти для різних порцій' },
+                { command: 'shopping', description: '🛒 Створити розумні списки покупок' },
+                { command: 'language', description: '🌍 Змінити мовні налаштування' },
+                { command: 'setup_help', description: '🆘 Отримати допомогу з налаштування' },
+                { command: 'help', description: '❓ Отримати допомогу та інструкції' },
+                { command: 'ping', description: '🏓 Перевірити відгук бота' }
+            ],
+            'pl': [
+                { command: 'start', description: '🌿 Witaj w GreenGrimoire!' },
+                { command: 'my_recipes', description: '📚 Zobacz swoją kolekcję przepisów' },
+                { command: 'forum_status', description: '📱 Sprawdź status osobistego forum' },
+                { command: 'reset_forum', description: '🗑️ Resetuj konfigurację forum' },
+                { command: 'stats', description: '📊 Zobacz statystyki kulinarne' },
+                { command: 'rate', description: '⭐ Oceń przepisy i śledź ulubione' },
+                { command: 'scale', description: '⚖️ Skaluj przepisy dla różnych porcji' },
+                { command: 'shopping', description: '🛒 Generuj inteligentne listy zakupów' },
+                { command: 'language', description: '🌍 Zmień preferencje językowe' },
+                { command: 'setup_help', description: '🆘 Uzyskaj pomoc z konfiguracją' },
+                { command: 'help', description: '❓ Uzyskaj pomoc i instrukcje' },
+                { command: 'ping', description: '🏓 Testuj responsywność bota' }
+            ],
+            'ru': [
+                { command: 'start', description: '🌿 Добро пожаловать в GreenGrimoire!' },
+                { command: 'my_recipes', description: '📚 Посмотреть вашу коллекцию рецептов' },
+                { command: 'forum_status', description: '📱 Проверить статус личного форума' },
+                { command: 'reset_forum', description: '🗑️ Сбросить настройки форума' },
+                { command: 'stats', description: '📊 Посмотреть вашу кулинарную статистику' },
+                { command: 'rate', description: '⭐ Оценить рецепты и отслеживать любимые' },
+                { command: 'scale', description: '⚖️ Масштабировать рецепты для разных порций' },
+                { command: 'shopping', description: '🛒 Создать умные списки покупок' },
+                { command: 'language', description: '🌍 Изменить языковые настройки' },
+                { command: 'setup_help', description: '🆘 Получить помощь с настройкой' },
+                { command: 'help', description: '❓ Получить помощь и инструкции' },
+                { command: 'ping', description: '🏓 Проверить отзывчивость бота' }
+            ]
+        };
+
+        return commandSets[languageCode] || commandSets['en'];
+    }
 }
 
-// singleton instance
 const localizationService = new LocalizationService();
 
 module.exports = localizationService;

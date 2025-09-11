@@ -18,6 +18,45 @@
     },
     "ping": {
       "response": "🏓 *Pong!* ⚡\n\n🌿 Moss is awake and ready!\n⏱️ Response time: {response_time}ms\n🌍 Speaking: {current_language}"
+    },
+    "my_recipes": {
+      "title": "📚 **Your Recipe Collection** 📚",
+      "empty": "📖 **Your collection is still empty!** 📖\n\n🎬 Send me cooking videos to collect your first recipes!\n🌿 *Each video will become a magical recipe in your collection*",
+      "count": "📊 **{count} recipes in your collection**"
+    },
+    "stats": {
+      "title": "📊 **Your Culinary Statistics** 📊",
+      "recipes_saved": "📚 **Recipes Saved:** {count}",
+      "favorite_category": "❤️ **Favorite Category:** {category}",
+      "languages_used": "🌍 **Languages Used:** {languages}",
+      "videos_processed": "🎬 **Videos Processed:** {count}",
+      "success_rate": "✅ **Success Rate:** {rate}%",
+      "total_ratings": "⭐ **Ratings Given:** {count}",
+      "average_rating": "🌟 **Average Rating:** {rating}/5"
+    },
+    "forum_status": {
+      "title": "📱 **Forum Status** 📱",
+      "setup_complete": "✅ **Setup Complete!**\n\n📱 **Your Forum:** [{forum_name}]({forum_link})\n📊 **Status:** Active and ready",
+      "setup_needed": "🔄 **Setup Required**\n\nYour personal forum is not yet configured."
+    },
+    "setup_help": {
+      "title": "🆘 **Forum Setup Help** 🆘",
+      "description": "**Step-by-Step Guide:**\n\n1️⃣ Create a new channel\n2️⃣ Add me as administrator\n3️⃣ Give me \"Manage Topics\" permission\n4️⃣ Send your setup code"
+    },
+    "rate": {
+      "title": "⭐ **Recipe Rating Center** ⭐",
+      "no_recipes": "📖 No recipes found for rating! Send cooking videos to start your collection.",
+      "select_recipe": "🎯 **Choose a recipe to rate:**"
+    },
+    "scale": {
+      "title": "⚖️ **Recipe Scaling** ⚖️",
+      "no_recipes": "📖 No recipes found for scaling! Send cooking videos to start your collection.",
+      "select_recipe": "🎯 **Choose a recipe to scale:**"
+    },
+    "shopping": {
+      "title": "🛒 **Smart Shopping List** 🛒",
+      "no_recipes": "📖 No recipes found for shopping list! Send cooking videos to start your collection.",
+      "select_recipes": "🎯 **Choose recipes for your shopping list:**"
     }
   },
   "processing": {
@@ -29,14 +68,29 @@
     "translating": "🌐 Translating from {from_language} to {to_language}...",
     "categorizing": "📂 Organizing into appropriate category...",
     "saving": "💾 Saving to your personal grimoire...",
-    "complete": "✅ Recipe successfully added to your collection!"
+    "complete": "✅ Recipe successfully added to your collection!",
+    "nutrition_analyzing": "🔬 Analyzing nutrition values...",
+    "shopping_generating": "🛒 Generating smart shopping list...",
+    "video_downloading": "📥 Downloading cooking video...",
+    "preparing": "🔧 Preparing magical tools...",
+    "finalizing": "✨ Finalizing your recipe..."
   },
   "errors": {
     "video_download": "❌ Could not download video. Please check the link!",
     "no_recipe_found": "🤷‍♂️ No recipe detected in this video. Try another one!",
     "translation_failed": "⚠️ Translation failed, but recipe saved in original language.",
     "forum_not_setup": "📱 Your personal forum isn't set up yet. Let me help you create one!",
-    "general": "🔧 Sorry, I had a little magical malfunction! Try again? ⚡"
+    "general": "🔧 Sorry, I had a little magical malfunction! Try again? ⚡",
+    "recipe_not_found": "❌ Recipe not found or not accessible!",
+    "rating_failed": "❌ Rating failed! Please try again.",
+    "scaling_failed": "❌ Scaling failed! Please try again.",
+    "shopping_failed": "❌ Could not create shopping list! Please try again.",
+    "permission_denied": "❌ I don't have permission to perform this action.",
+    "invalid_link": "❌ Invalid video link! Please send a valid cooking video URL.",
+    "network_error": "🌐 Network error! Please check your connection and try again.",
+    "service_unavailable": "🔧 Service temporarily unavailable. Please try again later.",
+    "file_too_large": "📁 File is too large! Please send a smaller video.",
+    "unsupported_format": "📱 Unsupported video format! Please try a different video."
   },
   "forums": {
     "categories": {
@@ -45,16 +99,16 @@
       "soups": "🍲 Mystic Soups",
       "drinks": "☕ Herbal Brews",
       "mains": "🍖 Hearty Feasts",
-      "breakfast": "🌅 Dawn Delights"
+      "breakfast": "🌅 Dawn Delights",
+      "snacks": "🥨 Magical Snacks",
+      "vegetarian": "🌱 Vegetarian Dishes",
+      "vegan": "🌿 Vegan Creations"
+    },
+    "setup": {
+      "welcome": "🌿 Welcome to your personal recipe forum!",
+      "categories_created": "📂 Recipe categories have been created automatically.",
+      "ready": "✅ Your forum is ready for recipes!"
     }
-  },
-  "stats": {
-    "title": "📊 **Your Culinary Statistics** 📊",
-    "recipes_saved": "📚 **Total Recipes:** {count}",
-    "favorite_category": "❤️ **Favorite Category:** {category}",
-    "languages_used": "🌍 **Languages:** {languages}",
-    "videos_processed": "🎬 **Videos Processed:** {count}",
-    "success_rate": "✅ **Success Rate:** {rate}%"
   },
   "buttons": {
     "start_setup": "🚀 Start Setup",
@@ -62,6 +116,87 @@
     "change_language": "🌍 Change Language",
     "need_help": "💬 Need Help?",
     "done": "✅ Done!",
-    "cancel": "❌ Cancel"
+    "cancel": "❌ Cancel",
+    "rate_recipe": "⭐ Rate",
+    "scale_recipe": "⚖️ Scale",
+    "view_recipe": "📖 View Recipe",
+    "add_to_shopping": "🛒 Add to Shopping",
+    "back": "⬅️ Back",
+    "next": "➡️ Next",
+    "confirm": "✅ Confirm",
+    "try_again": "🔄 Try Again",
+    "skip": "⏭️ Skip",
+    "edit": "✏️ Edit",
+    "delete": "🗑️ Delete",
+    "share": "📤 Share"
+  },
+  "nutrition": {
+    "title": "📊 **Nutrition Analysis** 📊",
+    "analyzing": "🔬 Analyzing nutrition values for \"{recipe_title}\"...",
+    "complete": "✅ **Nutrition Analysis Complete!**",
+    "already_analyzed": "✅ This recipe already has nutrition analysis!",
+    "failed": "❌ Nutrition analysis failed!",
+    "calories": "🔥 Calories: {value} kcal",
+    "protein": "🥩 Protein: {value}g",
+    "carbs": "🍞 Carbs: {value}g",
+    "fat": "🥑 Fat: {value}g",
+    "fiber": "🌾 Fiber: {value}g",
+    "sugar": "🍯 Sugar: {value}g"
+  },
+  "rating": {
+    "select_rating": "⭐ **Select your rating:**",
+    "rating_saved": "✅ Your rating has been saved!",
+    "rating_updated": "🔄 Rating updated!",
+    "cancel": "❌ Rating cancelled",
+    "one_star": "1⭐ Poor",
+    "two_star": "2⭐ Fair",
+    "three_star": "3⭐ Good",
+    "four_star": "4⭐ Very Good",
+    "five_star": "5⭐ Excellent"
+  },
+  "scaling": {
+    "select_factor": "⚖️ **Choose your scaling factor:**",
+    "custom_factor": "🔢 Enter a custom factor:",
+    "scaled_successfully": "✅ Recipe scaled successfully!",
+    "scaling_failed": "❌ Scaling failed!",
+    "half_portion": "0.5x Half Portion",
+    "original": "1x Original Recipe",
+    "double": "2x Double Portion",
+    "quadruple": "4x Quadruple Portion",
+    "custom": "🔢 Custom Scale"
+  },
+  "shopping": {
+    "list_generated": "✅ **Shopping List Created!**",
+    "no_ingredients": "❌ No ingredients found to add!",
+    "select_recipes": "🎯 **Choose recipes for your shopping list:**",
+    "consolidating": "🔄 Consolidating ingredients...",
+    "organizing": "📂 Organizing by categories...",
+    "finalizing": "✨ Finalizing your shopping list..."
+  },
+  "video": {
+    "processing_started": "🎬 **Video Processing Started!**\n\nI'm analyzing your cooking video using multiple techniques:",
+    "audio_transcription": "🎙️ Extracting audio and transcribing narration...",
+    "visual_analysis": "👁️ Analyzing video frames for text and ingredients...",
+    "content_extraction": "📝 Extracting recipe content from descriptions...",
+    "ai_parsing": "🤖 Using AI to structure the recipe...",
+    "translation_started": "🌐 Translating recipe to your language...",
+    "saving_recipe": "💾 Saving to your recipe collection...",
+    "posting_to_forum": "📱 Posting to your personal forum...",
+    "process_complete": "✅ **Process Complete!** Your recipe has been added successfully!"
+  },
+  "media": {
+    "unsupported_type": "❌ Unsupported media type! Please send a cooking video.",
+    "processing_image": "🖼️ Processing image for recipe content...",
+    "no_video_found": "❌ No video content found in this message.",
+    "file_too_large": "📁 File is too large! Maximum size is {max_size}MB.",
+    "download_failed": "❌ Failed to download media file."
+  },
+  "success": {
+    "recipe_added": "✅ Recipe successfully added to your collection!",
+    "forum_created": "✅ Personal forum created successfully!",
+    "language_changed": "✅ Language changed successfully!",
+    "rating_saved": "✅ Rating saved successfully!",
+    "recipe_scaled": "✅ Recipe scaled successfully!",
+    "shopping_list_created": "✅ Shopping list created successfully!"
   }
 }
